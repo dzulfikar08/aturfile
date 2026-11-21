@@ -46,9 +46,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --locked -p af-fs -p af-mac -p af-clean --all-targets -- -D warnings
+        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean --all-targets -- -D warnings
 
       - name: Test
+        if: ${{ !cancelled() }}
         run: cargo test --locked -p af-fs -p af-mac -p af-clean
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -82,12 +83,14 @@ jobs:
         run: rustup show active-toolchain || rustup toolchain install
 
       - name: Lint
-        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+        run: cargo clippy --locked --keep-going --workspace --all-targets -- -D warnings
 
       - name: Test
+        if: ${{ !cancelled() }}
         run: cargo test --locked --workspace
 
       - name: Build release
+        if: ${{ !cancelled() }}
         run: cargo build --locked --release -p af-app
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -102,6 +105,7 @@ jobs:
       # Plain build, and the same binary signed ad hoc with the App Store
       # sandbox entitlements to try the folder-grant flow.
       - name: Bundle
+        if: ${{ !cancelled() }}
         run: |
           scripts/bundle-macos.sh target/release/aturfile dist
           mkdir -p dist-sandboxed
@@ -110,6 +114,7 @@ jobs:
       # Launch each bundle, let it render (and scan, in Clean Up), screenshot,
       # and fail if the app died on the way.
       - name: Smoke test
+        if: ${{ !cancelled() }}
         run: |
           mkdir -p shots
           smoke() {

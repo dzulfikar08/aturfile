@@ -56,7 +56,7 @@ pub fn list_apps() -> Vec<InstalledApp> {
             }
         }
     }
-    apps.sort_by(|a, b| b.bundle_logical.cmp(&a.bundle_logical));
+    apps.sort_by_key(|x| std::cmp::Reverse(x.bundle_logical));
     apps
 }
 
@@ -186,7 +186,7 @@ pub fn find_leftovers(app: &InstalledApp) -> Vec<Leftover> {
             }
         }
     }
-    out.sort_by(|a, b| b.logical.cmp(&a.logical));
+    out.sort_by_key(|x| std::cmp::Reverse(x.logical));
     out
 }
 
@@ -205,7 +205,7 @@ pub fn uninstall_plan(app: &InstalledApp) -> UninstallPlan {
 /// Application Support drill-down).
 pub fn app_support_from_scan(root: &Node, home: &Path) -> Vec<(String, u64)> {
     let target = home.join("Library/Application Support");
-    fn rec<'a>(node: &'a Node, target: &Path, out: &mut Vec<(String, u64)>) {
+    fn rec(node: &Node, target: &Path, out: &mut Vec<(String, u64)>) {
         if node.path == target {
             for c in &node.children {
                 if c.is_dir() {
@@ -222,6 +222,6 @@ pub fn app_support_from_scan(root: &Node, home: &Path) -> Vec<(String, u64)> {
     }
     let mut out = Vec::new();
     rec(root, &target, &mut out);
-    out.sort_by(|a, b| b.1.cmp(&a.1));
+    out.sort_by_key(|x| std::cmp::Reverse(x.1));
     out
 }

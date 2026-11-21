@@ -133,6 +133,6 @@ pub fn find_duplicates(scan: &ScanResult, min_size: u64) -> std::io::Result<Vec<
             });
         }
     }
-    groups.sort_by(|a, b| b.wasted.cmp(&a.wasted));
+    groups.sort_by_key(|x| std::cmp::Reverse(x.wasted));
     Ok(groups)
 }

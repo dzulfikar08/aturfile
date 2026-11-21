@@ -71,7 +71,7 @@ pub fn diff(old: &ScanResult, new: &ScanResult) -> Vec<PathDelta> {
         });
     }
     out.retain(|d| d.delta != 0);
-    out.sort_by(|a, b| b.delta.cmp(&a.delta));
+    out.sort_by_key(|x| std::cmp::Reverse(x.delta));
     out
 }
 

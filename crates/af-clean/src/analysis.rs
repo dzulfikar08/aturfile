@@ -81,7 +81,7 @@ pub fn big_untouched(
             });
         }
     });
-    out.sort_by(|a, b| b.logical.cmp(&a.logical));
+    out.sort_by_key(|x| std::cmp::Reverse(x.logical));
     out
 }
 
@@ -122,7 +122,7 @@ pub fn top_sizes(scan: &ScanResult, n: usize) -> Vec<TopItem> {
             all.push(node);
         }
     });
-    all.sort_by(|a, b| b.logical.cmp(&a.logical));
+    all.sort_by_key(|x| std::cmp::Reverse(x.logical));
     all.into_iter()
         .take(n)
         .map(|node| TopItem {

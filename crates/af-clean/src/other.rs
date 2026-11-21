@@ -207,7 +207,7 @@ fn children_of(scan: Option<&ScanResult>, dir: &Path) -> Vec<SysPath> {
         }
     }
     out.retain(|p| p.logical > 0);
-    out.sort_by(|a, b| b.logical.cmp(&a.logical));
+    out.sort_by_key(|x| std::cmp::Reverse(x.logical));
     out
 }
 
@@ -309,7 +309,7 @@ pub fn find_dev_junk(scan: &ScanResult) -> Vec<DevJunkHit> {
             // subtree intentionally not traversed
         }
     }
-    hits.sort_by(|a, b| b.logical.cmp(&a.logical));
+    hits.sort_by_key(|x| std::cmp::Reverse(x.logical));
     hits
 }
 
@@ -380,7 +380,7 @@ pub fn other_report(scan: Option<&ScanResult>, now: i64) -> OtherReport {
                             exists: true,
                         });
                     }
-                    per_app.sort_by(|a, b| b.logical.cmp(&a.logical));
+                    per_app.sort_by_key(|x| std::cmp::Reverse(x.logical));
                     sum = base.logical;
                 }
             } else {
@@ -401,7 +401,7 @@ pub fn other_report(scan: Option<&ScanResult>, now: i64) -> OtherReport {
                         exists: true,
                     });
                 }
-                per_app.sort_by(|a, b| b.logical.cmp(&a.logical));
+                per_app.sort_by_key(|x| std::cmp::Reverse(x.logical));
             }
             categories.push(SysCategory {
                 id: rule.id.to_string(),
@@ -427,7 +427,7 @@ pub fn other_report(scan: Option<&ScanResult>, now: i64) -> OtherReport {
     }
 
     dedupe_nested(&mut categories);
-    categories.sort_by(|a, b| b.logical.cmp(&a.logical));
+    categories.sort_by_key(|x| std::cmp::Reverse(x.logical));
     let safe_reclaimable = categories
         .iter()
         .filter(|c| c.safety == Safety::Safe)
