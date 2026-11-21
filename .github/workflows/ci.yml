@@ -162,6 +162,7 @@ jobs:
           smoke files 8 "$app"
           smoke oversized 6 "$app" --window 1440x900
           smoke list-preview 8 "$app" --preview --select README.md "$fx"
+          smoke dark 8 "$app" --theme "aturfile Dark" --preview --select README.md "$fx"
           smoke columns 8 "$app" --view columns --select aturfile "$fx/Projects"
           smoke columns-file 8 "$app" --view columns --select Cargo.toml "$fx/Projects/aturfile"
           smoke icons 10 "$app" --view icons --preview "$fx/Photos"
@@ -169,8 +170,8 @@ jobs:
           smoke light 8 "$app" --theme "aturfile Light" --preview --select notes.txt "$fx"
           smoke airy-nord 8 "$app" --theme Nord --density airy --view icons "$fx"
           smoke palette 6 "$app" --palette "$fx"
-          smoke cleanup 15 "$app" --cleanup
-          smoke cleanup-light 15 "$app" --cleanup --theme "aturfile Light"
+          smoke cleanup 45 "$app" --cleanup --theme "aturfile Dark"
+          smoke cleanup-light 45 "$app" --cleanup --theme "aturfile Light"
           smoke sandboxed 8 dist-sandboxed/aturfile.app/Contents/MacOS/aturfile
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

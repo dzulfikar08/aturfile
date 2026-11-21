@@ -157,6 +157,7 @@ impl Workspace {
                     .flex_1()
                     .min_w(px(COLUMN_WIDTH))
                     .h_full()
+                    .overflow_hidden()
                     .bg(t.chrome)
                     .child(self.render_preview_for(&entry, true, cx))
                     .into_any_element(),
@@ -167,7 +168,6 @@ impl Workspace {
             .size_full()
             .overflow_hidden()
             .children(cols)
-            .child(div().flex_1())
     }
 
     fn column_frame(id: impl Into<ElementId>, cx: &App) -> Stateful<Div> {
@@ -322,7 +322,7 @@ impl Workspace {
                     .text_size(FONT_SMALL)
                     .text_color(if error.is_some() { t.danger } else { t.fg_dim })
                     .child(match error {
-                        Some(e) => SharedString::from(e),
+                        Some(e) => e,
                         None if listing.is_some() => "Empty folder".into(),
                         None => SharedString::default(),
                     }),

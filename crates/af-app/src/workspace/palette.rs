@@ -465,6 +465,7 @@ impl Workspace {
             out.push(
                 h_flex()
                     .id(("palette-row", i))
+                    .w_full()
                     .h(PALETTE_ROW_HEIGHT)
                     .px(SPACE_5)
                     .gap(SPACE_4)

@@ -232,6 +232,11 @@ pub fn apply_palette(p: &Palette, cx: &mut App) {
         k.primary_hover = c(mix(p.accent, p.foreground, 0.12));
         k.primary_active = c(mix(p.accent, p.background, 0.12));
         k.primary_foreground = t.accent_fg;
+        // Buttons keep their own copies of the primary colours.
+        k.button_primary = k.primary;
+        k.button_primary_hover = k.primary_hover;
+        k.button_primary_active = k.primary_active;
+        k.button_primary_foreground = k.primary_foreground;
         k.secondary = t.surface;
         k.secondary_hover = solid_hover;
         k.secondary_active = c(mix(p.background, p.foreground, 0.10));

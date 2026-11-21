@@ -170,10 +170,8 @@ impl Workspace {
     ) {
         match event {
             InputEvent::PressEnter { .. } => self.commit_rename(window, cx),
-            InputEvent::Blur => {
-                if self.ops.renaming.is_some() {
-                    self.commit_rename(window, cx);
-                }
+            InputEvent::Blur if self.ops.renaming.is_some() => {
+                self.commit_rename(window, cx);
             }
             _ => {}
         }

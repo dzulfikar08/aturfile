@@ -86,6 +86,8 @@ pub struct Workspace {
     pub(crate) notice: Option<SharedString>,
     /// A right-click landed on a row (the background menu stays shut).
     pub(crate) right_click_on_row: bool,
+    /// List view: which of Modified, Size, Kind fit beside the names.
+    pub(crate) list_cols: [bool; 3],
     /// AF_DEBUG: last logged window metrics.
     debug_last: Option<String>,
     _subscriptions: Vec<Subscription>,
@@ -153,6 +155,7 @@ impl Workspace {
             grants: af_mac::Grants::restore(),
             notice: None,
             right_click_on_row: false,
+            list_cols: [true; 3],
             debug_last: None,
             _subscriptions: subscriptions,
             _poll: poll,
@@ -663,11 +666,9 @@ impl Workspace {
                     self.set_notice(format!("No folder at {}", target.display()), cx);
                 }
             }
-            InputEvent::Blur => {
-                if self.editing_location {
-                    self.editing_location = false;
-                    cx.notify();
-                }
+            InputEvent::Blur if self.editing_location => {
+                self.editing_location = false;
+                cx.notify();
             }
             _ => {}
         }

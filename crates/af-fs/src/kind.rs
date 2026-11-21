@@ -228,9 +228,50 @@ impl FileKind {
     }
 }
 
+/// Readable names for common source and text formats.
+fn language(ext: &str) -> Option<&'static str> {
+    Some(match ext {
+        "rs" => "Rust source",
+        "py" => "Python script",
+        "js" | "mjs" | "cjs" => "JavaScript",
+        "ts" => "TypeScript",
+        "tsx" | "jsx" => "React source",
+        "swift" => "Swift source",
+        "go" => "Go source",
+        "c" => "C source",
+        "h" | "hpp" => "C header",
+        "cc" | "cpp" => "C++ source",
+        "m" | "mm" => "Objective-C source",
+        "java" => "Java source",
+        "kt" | "kts" => "Kotlin source",
+        "rb" => "Ruby script",
+        "php" => "PHP script",
+        "sh" | "bash" | "zsh" | "fish" => "Shell script",
+        "html" | "htm" => "HTML document",
+        "css" | "scss" | "sass" | "less" => "Stylesheet",
+        "json" | "jsonc" => "JSON",
+        "toml" => "TOML",
+        "yaml" | "yml" => "YAML",
+        "xml" => "XML",
+        "plist" => "Property list",
+        "sql" => "SQL",
+        "lock" => "Lock file",
+        "txt" | "text" => "Plain text",
+        "log" => "Log file",
+        "csv" => "CSV",
+        "tsv" => "TSV",
+        "rtf" => "Rich text",
+        "diff" | "patch" => "Patch",
+        _ => return None,
+    })
+}
+
 /// The Kind column's text: "Folder", "PNG image", "Markdown", "Document".
 pub fn kind_label(name: &str, is_dir: bool) -> String {
     let kind = classify(name, is_dir);
+    if let Some(lang) = language(&extension_of(name)).filter(|_| !is_dir) {
+        return lang.to_owned();
+    }
     match kind {
         FileKind::Folder
         | FileKind::Package
@@ -283,6 +324,8 @@ mod tests {
         assert_eq!(kind_label("notes.md", false), "Markdown");
         assert_eq!(kind_label("x", true), "Folder");
         assert_eq!(kind_label("data.bin", false), "BIN file");
+        assert_eq!(kind_label("main.rs", false), "Rust source");
+        assert_eq!(kind_label("notes.txt", false), "Plain text");
         assert_eq!(kind_label("noext", false), "Document");
     }
 

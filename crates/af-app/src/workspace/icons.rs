@@ -132,7 +132,7 @@ impl Workspace {
                             .rounded(RADIUS_SM)
                             .text_size(FONT_SMALL)
                             .text_center()
-                            .line_clamp(2)
+                            .truncate()
                             .when(selected, |d| d.bg(t.accent).text_color(t.accent_fg))
                             .child(entry.name.clone()),
                     )

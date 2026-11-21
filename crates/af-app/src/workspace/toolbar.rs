@@ -14,7 +14,11 @@ use super::Workspace;
 use crate::tab::ViewMode;
 
 impl Workspace {
-    pub(super) fn render_toolbar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn render_toolbar(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let t = tokens(cx);
         let tab = self.tab();
         let (can_back, can_forward, view) =
@@ -47,7 +51,7 @@ impl Workspace {
                 )
                 .into_any_element()
         } else {
-            self.render_crumbs(cx).into_any_element()
+            self.render_crumbs(window, cx).into_any_element()
         };
 
         let view_button = |id: &'static str,
@@ -139,11 +143,26 @@ impl Workspace {
     }
 
     /// The path as clickable segments; empty space starts typing a location.
-    fn render_crumbs(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_crumbs(&mut self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = tokens(cx);
         let home = af_clean::paths::home();
-        let crumbs =
-            af_fs::location::collapse(af_fs::location::breadcrumbs(&self.tab().cwd, &home), 4);
+        // Room left by the other toolbar controls; keep as many trailing
+        // folders as fit (a rough 7 px per character).
+        let mut avail = f32::from(window.viewport_size().width) - 420.0;
+        if self.settings.show_sidebar {
+            avail -= self.settings.sidebar_width;
+        }
+        let all = af_fs::location::breadcrumbs(&self.tab().cwd, &home);
+        let width = |c: &[af_fs::location::Crumb]| -> f32 {
+            c.iter()
+                .map(|c| c.label.chars().count() as f32 * 7.0 + 30.0)
+                .sum()
+        };
+        let crumbs = (1..=6)
+            .rev()
+            .map(|keep| af_fs::location::collapse(all.clone(), keep))
+            .find(|c| width(c) <= avail)
+            .unwrap_or_else(|| af_fs::location::collapse(all.clone(), 1));
         let last = crumbs.len().saturating_sub(1);
         let mut row = h_flex()
             .id("crumbs")
@@ -184,8 +203,11 @@ impl Workspace {
             row = row.child(
                 div()
                     .id(("crumb", i))
-                    .flex_shrink(1.)
-                    .min_w(px(24.))
+                    .when_else(
+                        is_last,
+                        |d| d.flex_shrink(1.).min_w(px(40.)),
+                        |d| d.flex_none(),
+                    )
                     .px(SPACE_2)
                     .py(px(1.))
                     .rounded(RADIUS_SM)

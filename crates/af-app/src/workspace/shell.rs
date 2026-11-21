@@ -182,7 +182,7 @@ impl Workspace {
                 .into_any_element()
         } else {
             match self.tab().view {
-                ViewMode::List => self.render_list(cx).into_any_element(),
+                ViewMode::List => self.render_list(window, cx).into_any_element(),
                 ViewMode::Columns => self.render_columns(window, cx).into_any_element(),
                 ViewMode::Icons => self.render_icons(window, cx).into_any_element(),
             }
@@ -191,30 +191,33 @@ impl Workspace {
         if show_preview {
             self.sync_preview(cx);
         }
-        v_flex().size_full().child(self.render_toolbar(cx)).child(
-            h_flex()
-                .flex_1()
-                .min_h_0()
-                .w_full()
-                .child(div().flex_1().min_w_0().h_full().child(view))
-                .when(show_preview, |d| {
-                    d.child(
-                        div()
-                            .relative()
-                            .flex_none()
-                            .h_full()
-                            .w(preview_w)
-                            .border_l_1()
-                            .border_color(t.border)
-                            .bg(t.chrome)
-                            .child(self.render_preview(cx))
-                            .child(
-                                self.resize_handle("preview-edge", Drag::Preview, cx)
-                                    .left(-RESIZE_HANDLE / 2.),
-                            ),
-                    )
-                }),
-        )
+        v_flex()
+            .size_full()
+            .child(self.render_toolbar(window, cx))
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_h_0()
+                    .w_full()
+                    .child(div().flex_1().min_w_0().h_full().child(view))
+                    .when(show_preview, |d| {
+                        d.child(
+                            div()
+                                .relative()
+                                .flex_none()
+                                .h_full()
+                                .w(preview_w)
+                                .border_l_1()
+                                .border_color(t.border)
+                                .bg(t.chrome)
+                                .child(self.render_preview(cx))
+                                .child(
+                                    self.resize_handle("preview-edge", Drag::Preview, cx)
+                                        .left(-RESIZE_HANDLE / 2.),
+                                ),
+                        )
+                    }),
+            )
     }
 
     pub(super) fn render_status_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {

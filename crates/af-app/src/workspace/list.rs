@@ -44,6 +44,9 @@ pub(crate) fn kind_icon(kind: FileKind, symlink: bool, t: &Tokens) -> (IconName,
     }
 }
 
+/// The least width the Name column keeps before other columns hide.
+const NAME_MIN: f32 = 220.;
+
 pub(crate) fn size_text(entry: &Entry) -> String {
     if entry.is_dir {
         "\u{2014}".into()
@@ -133,6 +136,7 @@ impl Workspace {
                         ),
                 )
         };
+        let shown = self.list_cols;
         let name = column("h-name", "Name", SortKey::Name, cx);
         let modified = column("h-date", "Modified", SortKey::Modified, cx);
         let size = column("h-size", "Size", SortKey::Size, cx);
@@ -148,12 +152,39 @@ impl Workspace {
             .border_b_1()
             .border_color(t.border)
             .child(div().flex_1().min_w_0().h_full().pl(px(26.)).child(name))
-            .child(resizable(0, modified, cx))
-            .child(resizable(1, size, cx))
-            .child(resizable(2, kind, cx))
+            .when(shown[0], |d| d.child(resizable(0, modified, cx)))
+            .when(shown[1], |d| d.child(resizable(1, size, cx)))
+            .when(shown[2], |d| d.child(resizable(2, kind, cx)))
     }
 
-    pub(super) fn render_list(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    /// Drop Kind, then Modified, then Size while the names would get less
+    /// than a readable width.
+    fn fit_list_columns(&mut self, window: &Window) {
+        let mut avail = f32::from(window.viewport_size().width) - 40.0;
+        if self.settings.show_sidebar {
+            avail -= self.settings.sidebar_width;
+        }
+        if self.settings.show_preview {
+            avail -= self.settings.preview_width;
+        }
+        let w = self.settings.columns;
+        let mut shown = [true; 3];
+        for drop in [2, 0, 1] {
+            let used: f32 = (0..3).filter(|&i| shown[i]).map(|i| w[i]).sum();
+            if avail - used >= NAME_MIN {
+                break;
+            }
+            shown[drop] = false;
+        }
+        self.list_cols = shown;
+    }
+
+    pub(super) fn render_list(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        self.fit_list_columns(window);
         let t = tokens(cx);
         let ws = cx.entity().downgrade();
         let tab = self.tab();
@@ -220,6 +251,7 @@ impl Workspace {
         let t = tokens(cx);
         let row_h = appearance::density(cx).row_height();
         let widths = self.settings.columns;
+        let shown = self.list_cols;
         let tab = self.tab();
         let entry = tab.entry_at(row)?.clone();
         let selected = tab.selection.contains(row);
@@ -284,9 +316,11 @@ impl Workspace {
                                 .child(Icon::new(icon).size(ICON_LG).text_color(color).flex_none())
                                 .child(name),
                         )
-                        .child(muted(widths[0], date))
-                        .child(muted(widths[1], size_text(&entry)).flex().justify_end())
-                        .child(muted(widths[2], kind)),
+                        .when(shown[0], |d| d.child(muted(widths[0], date)))
+                        .when(shown[1], |d| {
+                            d.child(muted(widths[1], size_text(&entry)).flex().justify_end())
+                        })
+                        .when(shown[2], |d| d.child(muted(widths[2], kind))),
                 )
                 .on_mouse_down(
                     MouseButton::Left,
