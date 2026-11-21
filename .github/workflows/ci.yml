@@ -111,21 +111,27 @@ jobs:
           mkdir -p dist-sandboxed
           scripts/bundle-macos.sh target/release/aturfile dist-sandboxed packaging/entitlements.mas.plist
 
-      # Launch each bundle, let it render (and scan, in Clean Up), screenshot,
-      # and fail if the app died on the way.
+      # Launch each bundle, let it render (and scan, in Clean Up), capture its
+      # window, and fail if the app died on the way.
       - name: Smoke test
         if: ${{ !cancelled() }}
         run: |
           mkdir -p shots
+          swiftc -O -o /tmp/window-id scripts/window-id.swift
           smoke() {
             local name="$1"; shift
             "$@" > "shots/$name.log" 2>&1 &
-            local pid=$!
-            sleep 12
-            screencapture -x "shots/$name.png" || true
+            local pid=$! id=""
+            for _ in $(seq 1 60); do
+              if id="$(/tmp/window-id "$pid" 2>/dev/null)"; then break; fi
+              sleep 0.5
+            done
+            [ -n "$id" ] || { echo "::error::$name: no window appeared"; cat "shots/$name.log"; return 1; }
+            sleep 15
             if ! kill -0 "$pid" 2>/dev/null; then
               echo "::error::$name exited early"; cat "shots/$name.log"; return 1
             fi
+            screencapture -o -x -l "$id" "shots/$name.png"
             kill "$pid"
           }
           smoke files dist/aturfile.app/Contents/MacOS/aturfile

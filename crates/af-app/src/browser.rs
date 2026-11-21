@@ -341,14 +341,12 @@ impl Workspace {
         let keep = self.current().map(|e| e.path.clone());
         af_fs::sort(&mut self.entries, self.sort, self.ascending);
         self.refilter();
-        if let Some(path) = keep {
-            if let Some(pos) = self
-                .visible
+        if let Some(pos) = keep.and_then(|path| {
+            self.visible
                 .iter()
                 .position(|&i| self.entries[i].path == path)
-            {
-                self.select(pos, cx);
-            }
+        }) {
+            self.select(pos, cx);
         }
         cx.notify();
     }
