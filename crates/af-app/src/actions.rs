@@ -2,7 +2,6 @@
 //! macOS (`cmd-`); `af_ui::keys::primary` makes them Ctrl elsewhere.
 
 use af_ui::keys::primary;
-use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 pub const WORKSPACE: &str = "Workspace";

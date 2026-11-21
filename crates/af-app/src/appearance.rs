@@ -3,7 +3,6 @@
 
 use af_ui::catalog::{self, ThemeId};
 use af_ui::metrics::Density;
-use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 pub struct Appearance {

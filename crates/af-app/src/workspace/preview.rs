@@ -405,24 +405,22 @@ impl Workspace {
                     .child(copy),
             );
 
+        let body = if grows {
+            content
+        } else {
+            div()
+                .flex_1()
+                .min_h_0()
+                .flex()
+                .flex_col()
+                .justify_center()
+                .child(content)
+                .into_any_element()
+        };
         v_flex()
             .id("preview")
             .size_full()
-            .when_else(
-                grows,
-                |d| d.child(content),
-                |d| {
-                    d.child(
-                        div()
-                            .flex_1()
-                            .min_h_0()
-                            .flex()
-                            .flex_col()
-                            .justify_center()
-                            .child(content),
-                    )
-                },
-            )
+            .child(body)
             .child(meta)
             .into_any_element()
     }
