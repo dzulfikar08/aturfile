@@ -1,0 +1,24 @@
+[package]
+name = "af-clean"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+description = "aturfile disk cleanup engine: parallel scanner, System Data categorizer, staged safe cleanup, duplicates"
+
+[dependencies]
+af-mac = { path = "../af-mac" }
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+chrono.workspace = true
+xxhash-rust.workspace = true
+plist.workspace = true
+parking_lot.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+
+[dev-dependencies]
+tempfile.workspace = true

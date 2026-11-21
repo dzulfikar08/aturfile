@@ -1,0 +1,18 @@
+[package]
+name = "af-app"
+description = "aturfile: a fast file manager with disk cleanup, in GPUI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "aturfile"
+path = "src/main.rs"
+
+[dependencies]
+af-fs = { path = "../af-fs" }
+af-clean = { path = "../af-clean" }
+af-mac = { path = "../af-mac" }
+gpui = "0.2.2"
