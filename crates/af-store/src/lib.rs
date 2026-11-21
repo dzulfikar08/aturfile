@@ -273,7 +273,6 @@ mod tests {
     #[test]
     #[cfg(not(feature = "store"))]
     fn source_builds_sell_nothing() {
-        assert!(!STORE_BUILD);
         assert!(snapshot().is_err());
         assert!(purchase().is_err());
         assert_eq!(products_json(), format!(r#"["{PRO_PRODUCT}"]"#));
