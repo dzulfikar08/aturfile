@@ -1,0 +1,92 @@
+# Signed Mac App Store build. Manual only: Actions -> Release -> Run workflow, or
+#   gh workflow run release.yml -f upload=true
+#
+# Runs in the `release` environment (deployments from main only), which holds
+# the signing secrets; pull requests and forks never see them. With `upload`
+# the .pkg goes to App Store Connect (TestFlight); without it the .pkg is only
+# validated. Setup and secrets: docs/release.md.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload the .pkg to App Store Connect (TestFlight)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  appstore:
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment: release
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: store-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          restore-keys: |
+            store-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            store-macos-
+
+      - name: Toolchain
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Signing identities and App Store Connect key
+        env:
+          ASC_KEY_BASE64: ${{ secrets.ASC_KEY_BASE64 }}
+          APPLE_DIST_P12_BASE64: ${{ secrets.APPLE_DIST_P12_BASE64 }}
+          APPLE_DIST_P12_PASSWORD: ${{ secrets.APPLE_DIST_P12_PASSWORD }}
+          MAC_INSTALLER_P12_BASE64: ${{ secrets.MAC_INSTALLER_P12_BASE64 }}
+          MAC_INSTALLER_P12_PASSWORD: ${{ secrets.MAC_INSTALLER_P12_PASSWORD }}
+        run: scripts/ci-keychain.sh setup APPLE_DIST MAC_INSTALLER
+
+      - name: Build (universal, store feature)
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+        run: scripts/build-mas.sh bundle dist-store
+
+      - name: No private API
+        run: |
+          bin=dist-store/aturfile.app/Contents/MacOS/aturfile
+          if strings -a "$bin" | grep -E '_windowResize(NorthWest|NorthEast)|_zoomFill|_opaqueRectForWindowMove|_windowRestorationOptions|NSWindowRestorationOptions|CGSSetWindowBackgroundBlurRadius'; then
+            echo "::error::private AppKit API in the store build (see vendor/gpui-pre-macos/PATCHES.md)"
+            exit 1
+          fi
+
+      - name: Sign, package and ${{ inputs.upload && 'upload' || 'validate' }}
+        run: |
+          serial="$(security find-certificate -a -c 'Apple Distribution' -p "$RUNNER_TEMP/release.keychain-db" | openssl x509 -noout -serial | cut -d= -f2)"
+          python3 scripts/asc-profile.py MAC_APP_STORE com.atur.aturfile "$serial" "$RUNNER_TEMP/mas.provisionprofile"
+          MAS_PROFILE="$RUNNER_TEMP/mas.provisionprofile" \
+            scripts/build-mas.sh package dist-store/aturfile.app dist-store ${{ inputs.upload && '--upload' || '' }}
+          shasum -a 256 dist-store/*.pkg | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aturfile-mas-pkg
+          path: dist-store/*.pkg
+          if-no-files-found: error
+
+      - name: Clean up keychain and key
+        if: always()
+        run: scripts/ci-keychain.sh cleanup

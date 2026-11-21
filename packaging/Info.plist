@@ -18,6 +18,9 @@
     <string>@VERSION@</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
+    <!-- No encryption beyond what macOS provides: skips the export compliance question. -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
     <key>NSHighResolutionCapable</key>
