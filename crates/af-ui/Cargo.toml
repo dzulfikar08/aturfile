@@ -1,0 +1,11 @@
+[package]
+name = "af-ui"
+description = "aturfile's design system: palettes, bundled themes, colour tokens, metrics and small components (GPUI)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-kit.workspace = true

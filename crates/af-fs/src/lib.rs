@@ -10,6 +10,14 @@ use std::time::UNIX_EPOCH;
 
 use rayon::prelude::*;
 
+pub mod details;
+pub mod kind;
+pub mod location;
+pub mod selection;
+
+pub use kind::FileKind;
+pub use selection::Selection;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub name: String,
@@ -33,6 +41,10 @@ impl Entry {
             .extension()
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default()
+    }
+
+    pub fn kind(&self) -> FileKind {
+        kind::classify(&self.name, self.is_dir)
     }
 }
 

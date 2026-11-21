@@ -6,6 +6,7 @@
 //!   trash files the user granted.
 //! - [`Grants`]: folders the user opened through the open panel, kept as
 //!   security-scoped bookmarks so the sandboxed app can reach them next launch.
+//! - [`volumes`] and [`space`]: mounted disks and their capacity.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -76,6 +77,116 @@ fn passwd_home() -> Option<PathBuf> {
 /// works); elsewhere the freedesktop Trash under `$XDG_DATA_HOME/Trash`.
 pub fn trash(path: &Path) -> io::Result<()> {
     imp::trash(path)
+}
+
+// ---- Volumes ------------------------------------------------------------------
+
+/// A mounted disk for the sidebar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Volume {
+    pub name: String,
+    pub path: PathBuf,
+    pub total: u64,
+    pub free: u64,
+    /// The disk the system runs from.
+    pub is_root: bool,
+}
+
+/// Capacity of the volume holding `path`: `(total, available)` bytes, the
+/// available part counting only what an unprivileged user may fill.
+#[cfg(unix)]
+#[allow(clippy::unnecessary_cast)] // field widths differ between macOS and Linux
+pub fn space(path: &Path) -> Option<(u64, u64)> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let c = CString::new(path.as_os_str().as_bytes()).ok()?;
+    // SAFETY: zeroed statvfs is a valid out-parameter; `c` is NUL-terminated.
+    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs(c.as_ptr(), &mut st) } != 0 {
+        return None;
+    }
+    let frsize = if st.f_frsize > 0 {
+        st.f_frsize as u64
+    } else {
+        st.f_bsize as u64
+    };
+    let (blocks, avail) = (st.f_blocks as u64, st.f_bavail as u64);
+    Some((blocks * frsize, avail * frsize))
+}
+
+#[cfg(not(unix))]
+pub fn space(_path: &Path) -> Option<(u64, u64)> {
+    None
+}
+
+/// Mounted volumes, the startup disk first. On macOS: everything in
+/// `/Volumes` (the startup disk appears there as a link to `/`); elsewhere
+/// `/` plus removable and user mounts.
+pub fn volumes() -> Vec<Volume> {
+    let mut out: Vec<Volume> = Vec::new();
+    let mut push = |name: String, path: PathBuf, is_root: bool| {
+        if out.iter().any(|v| v.path == path) {
+            return;
+        }
+        if let Some((total, free)) = space(&path).filter(|(t, _)| *t > 0) {
+            out.push(Volume {
+                name,
+                path,
+                total,
+                free,
+                is_root,
+            });
+        }
+    };
+    if cfg!(target_os = "macos") {
+        let mut found_root = false;
+        if let Ok(rd) = std::fs::read_dir("/Volumes") {
+            let mut entries: Vec<_> = rd.flatten().collect();
+            entries.sort_by_key(|e| e.file_name());
+            for e in entries {
+                let name = e.file_name().to_string_lossy().into_owned();
+                if name.starts_with('.') {
+                    continue;
+                }
+                let path = e.path();
+                let real = std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+                if real == Path::new("/") {
+                    found_root = true;
+                    push(name, PathBuf::from("/"), true);
+                } else {
+                    push(name, path, false);
+                }
+            }
+        }
+        if !found_root {
+            push("Macintosh HD".into(), PathBuf::from("/"), true);
+        }
+    } else {
+        push("Computer".into(), PathBuf::from("/"), true);
+        if let Ok(mounts) = std::fs::read_to_string("/proc/mounts") {
+            for line in mounts.lines() {
+                let Some(dir) = line.split_whitespace().nth(1) else {
+                    continue;
+                };
+                let dir = dir.replace("\\040", " ");
+                let user_mount = ["/media/", "/run/media/", "/mnt/"]
+                    .iter()
+                    .any(|p| dir.starts_with(p));
+                if user_mount {
+                    let path = PathBuf::from(&dir);
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| dir.clone());
+                    push(name, path, false);
+                }
+            }
+        }
+    }
+    // Startup disk first, the rest in name order.
+    out.sort_by(|a, b| b.is_root.cmp(&a.is_root).then(a.name.cmp(&b.name)));
+    out
 }
 
 // ---- Folder grants ------------------------------------------------------------
@@ -331,6 +442,15 @@ mod tests {
         let file = dir.path().join("g.bin");
         write_blobs(&file, &[vec![1, 2, 3], vec![], vec![9; 300]]).unwrap();
         assert_eq!(read_blobs(&file), vec![vec![1, 2, 3], vec![], vec![9; 300]]);
+    }
+
+    #[test]
+    fn root_has_space() {
+        let (total, free) = space(Path::new("/")).unwrap();
+        assert!(total > 0 && free <= total);
+        let vols = volumes();
+        assert!(vols[0].is_root, "{vols:?}");
+        assert!(space(Path::new("/no/such/place")).is_none());
     }
 
     #[test]

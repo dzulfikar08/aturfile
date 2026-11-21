@@ -36,8 +36,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: engines-linux-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: engines-linux-
+          key: engines-linux-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.run_id }}
+          restore-keys: |
+            engines-linux-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            engines-linux-
 
       - name: Toolchain
         run: rustup show active-toolchain || rustup toolchain install
@@ -53,7 +55,8 @@ jobs:
         run: cargo test --locked -p af-fs -p af-mac -p af-clean
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: success() && steps.cache.outputs.cache-hit != 'true'
+        # Saved after failed lints too, so the next push doesn't rebuild GPUI.
+        if: ${{ !cancelled() }}
         with:
           path: |
             ~/.cargo/registry
@@ -76,8 +79,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: app-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: app-macos-
+          key: app-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.run_id }}
+          restore-keys: |
+            app-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            app-macos-
 
       - name: Toolchain
         run: rustup show active-toolchain || rustup toolchain install
@@ -94,7 +99,8 @@ jobs:
         run: cargo build --locked --release -p af-app
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: success() && steps.cache.outputs.cache-hit != 'true'
+        # Saved after failed lints too, so the next push doesn't rebuild GPUI.
+        if: ${{ !cancelled() }}
         with:
           path: |
             ~/.cargo/registry
