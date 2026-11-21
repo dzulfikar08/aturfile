@@ -2,6 +2,7 @@
 //! rendered Markdown, folder totals, and a metadata block for every item.
 //! Everything is read on a background thread.
 
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -11,6 +12,7 @@ use af_ui::components::{IconButtonExt as _, icon_button, section_label};
 use af_ui::metrics::*;
 use af_ui::tokens;
 use gpui_kit::assets::IconName;
+use gpui_kit::component::highlighter::{HighlightTheme, SyntaxHighlighter};
 use gpui_kit::component::text::TextView;
 use gpui_kit::component::{ActiveTheme as _, Icon, h_flex, v_flex};
 use gpui_kit::prelude::*;
@@ -30,6 +32,65 @@ const MARKDOWN_CAP: usize = 200 * 1024;
 /// Entries a folder summary walks before it stops counting.
 const FOLDER_WALK_LIMIT: u64 = 50_000;
 const TEXT_LINE_HEIGHT: Pixels = px(18.);
+/// Files up to this size are syntax highlighted.
+const HIGHLIGHT_CAP: usize = 256 * 1024;
+
+/// Styles for one line: byte ranges within it.
+type LineStyles = Vec<(Range<usize>, HighlightStyle)>;
+
+/// The highlighter's name for a file's language, for the few bundled.
+fn language_for(name: &str) -> Option<&'static str> {
+    Some(match af_fs::kind::extension_of(name).as_str() {
+        "rs" => "rust",
+        "toml" => "toml",
+        "json" | "jsonc" => "json",
+        "js" | "mjs" | "cjs" | "jsx" => "javascript",
+        "ts" | "tsx" => "typescript",
+        "py" => "python",
+        "sh" | "bash" | "zsh" => "bash",
+        "yaml" | "yml" => "yaml",
+        _ => return None,
+    })
+}
+
+/// Highlight `text` and split the styles by line (`starts`: each line's
+/// byte offset in `text`).
+fn highlight_lines(
+    text: &str,
+    starts: &[usize],
+    lang: &str,
+    theme: &HighlightTheme,
+) -> Vec<LineStyles> {
+    let mut per_line: Vec<LineStyles> = vec![Vec::new(); starts.len()];
+    if starts.is_empty() {
+        return per_line;
+    }
+    let rope = gpui_kit::component::Rope::from_str(text);
+    let mut hl = SyntaxHighlighter::new(lang);
+    hl.update(None, &rope, None);
+    for (range, style) in hl.styles(&(0..text.len()), theme) {
+        if range.is_empty() {
+            continue;
+        }
+        // First line touching the range.
+        let mut line = starts
+            .partition_point(|&s| s <= range.start)
+            .saturating_sub(1);
+        while line < starts.len() && starts[line] < range.end {
+            let start = starts[line];
+            let end = starts
+                .get(line + 1)
+                .map_or(text.len(), |&n| n.saturating_sub(1));
+            let a = range.start.max(start);
+            let b = range.end.min(end);
+            if a < b {
+                per_line[line].push((a - start..b - start, style));
+            }
+            line += 1;
+        }
+    }
+    per_line
+}
 
 #[derive(Default)]
 pub(crate) enum Content {
@@ -38,6 +99,8 @@ pub(crate) enum Content {
     Loading,
     Text {
         lines: Arc<Vec<SharedString>>,
+        /// Syntax styles per line (empty when not highlighted).
+        styles: Arc<Vec<LineStyles>>,
         truncated: bool,
     },
     Markdown(SharedString),
@@ -57,7 +120,7 @@ pub(crate) struct Preview {
     _task: Option<Task<()>>,
 }
 
-fn load(entry: &Entry) -> (Option<Details>, Content) {
+fn load(entry: &Entry, theme: &HighlightTheme) -> (Option<Details>, Content) {
     let details = af_fs::details::details(&entry.path).ok();
     let content = if is_folder(entry) {
         match af_fs::details::summarize(&entry.path, FOLDER_WALK_LIMIT) {
@@ -76,15 +139,29 @@ fn load(entry: &Entry) -> (Option<Details>, Content) {
                     Content::Markdown(t.text.into())
                 }
                 Ok(t) => {
-                    let lines: Vec<SharedString> = t
-                        .text
-                        .lines()
-                        .take(MAX_LINES)
-                        .map(|l| SharedString::from(l.replace('\t', "    ")))
-                        .collect();
+                    let text = t.text.replace('\t', "    ");
+                    let mut starts = Vec::new();
+                    let mut lines: Vec<SharedString> = Vec::new();
+                    let mut at = 0;
+                    for line in text.split('\n').take(MAX_LINES) {
+                        starts.push(at);
+                        at += line.len() + 1;
+                        lines.push(SharedString::from(line.trim_end_matches('\r').to_owned()));
+                    }
+                    if text.ends_with('\n') {
+                        lines.pop();
+                        starts.pop();
+                    }
+                    let styles = match language_for(&entry.name) {
+                        Some(lang) if text.len() <= HIGHLIGHT_CAP => {
+                            highlight_lines(&text, &starts, lang, theme)
+                        }
+                        _ => Vec::new(),
+                    };
                     Content::Text {
                         truncated: t.truncated || lines.len() >= MAX_LINES,
                         lines: Arc::new(lines),
+                        styles: Arc::new(styles),
                     }
                 }
                 Err(e) => Content::Error(e.to_string().into()),
@@ -119,7 +196,10 @@ impl Workspace {
         };
         self.preview.content = Content::Loading;
         let path = entry.path.clone();
-        let work = cx.background_executor().spawn(async move { load(&entry) });
+        let theme = cx.theme().highlight_theme.clone();
+        let work = cx
+            .background_executor()
+            .spawn(async move { load(&entry, &theme) });
         self.preview._task = Some(cx.spawn(async move |this, cx| {
             let (details, content) = work.await;
             let _ = this.update(cx, |ws, cx| {
@@ -222,8 +302,16 @@ impl Workspace {
                         .rounded(RADIUS_MD),
                 )
                 .into_any_element(),
-            (Content::Text { lines, truncated }, true) => {
+            (
+                Content::Text {
+                    lines,
+                    styles,
+                    truncated,
+                },
+                true,
+            ) => {
                 let lines = lines.clone();
+                let styles = styles.clone();
                 let count = lines.len();
                 let truncated = *truncated;
                 v_flex()
@@ -240,15 +328,25 @@ impl Workspace {
                         uniform_list("preview-lines", count, move |range, _, _| {
                             range
                                 .map(|i| {
+                                    let line = lines[i].clone();
+                                    let text = match styles.get(i) {
+                                        Some(st) if !st.is_empty() => {
+                                            StyledText::new(line).with_highlights(st.clone())
+                                        }
+                                        _ => StyledText::new(line),
+                                    };
                                     div()
                                         .h(TEXT_LINE_HEIGHT)
                                         .px(SPACE_4)
                                         .whitespace_nowrap()
-                                        .overflow_hidden()
-                                        .child(lines[i].clone())
+                                        .child(text)
                                 })
                                 .collect::<Vec<_>>()
                         })
+                        // Long lines scroll sideways instead of being cut.
+                        .with_horizontal_sizing_behavior(
+                            ListHorizontalSizingBehavior::Unconstrained,
+                        )
                         .track_scroll(&self.preview.text_scroll)
                         .flex_1()
                         .py(SPACE_3)

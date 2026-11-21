@@ -17,7 +17,17 @@ af-clean = { path = "../af-clean" }
 af-mac = { path = "../af-mac" }
 af-ui = { path = "../af-ui" }
 af-search = { path = "../af-search" }
-gpui-kit.workspace = true
+# Syntax highlighting in the code preview: tree-sitter grammars for a few
+# common languages only (JSON comes with the base feature).
+gpui-kit = { workspace = true, features = [
+    "tree-sitter-rust",
+    "tree-sitter-toml",
+    "tree-sitter-javascript",
+    "tree-sitter-typescript",
+    "tree-sitter-python",
+    "tree-sitter-bash",
+    "tree-sitter-yaml",
+] }
 serde.workspace = true
 toml.workspace = true
 chrono.workspace = true

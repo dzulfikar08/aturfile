@@ -20,6 +20,9 @@ const DEBOUNCE: Duration = Duration::from_millis(150);
 pub(crate) struct Watch {
     watcher: Option<notify::RecommendedWatcher>,
     watched: HashSet<PathBuf>,
+    /// The same folders with symlinks resolved: events name real paths
+    /// (`/private/tmp/...` for `/tmp/...`).
+    real: HashSet<PathBuf>,
     _task: Task<()>,
 }
 
@@ -54,6 +57,7 @@ impl Watch {
         Self {
             watcher,
             watched: HashSet::new(),
+            real: HashSet::new(),
             _task: task,
         }
     }
@@ -91,6 +95,7 @@ impl Workspace {
         for new in want.difference(&w.watched) {
             let _ = watcher.watch(new, RecursiveMode::NonRecursive);
         }
+        w.real = want.iter().map(|p| real_path(p)).collect();
         w.watched = want;
     }
 
@@ -99,7 +104,7 @@ impl Workspace {
         // may also name the folder itself.
         let mut dirs: HashSet<PathBuf> = HashSet::new();
         for p in &changed {
-            if self.watch.watched.contains(p) {
+            if self.watch.real.contains(p) || self.watch.watched.contains(p) {
                 dirs.insert(p.clone());
             }
             if let Some(parent) = p.parent() {
@@ -111,8 +116,10 @@ impl Workspace {
         }
         for ix in 0..self.tabs.len() {
             let tab = &mut self.tabs[ix];
-            tab.listings.retain(|dir, _| !dirs.contains(dir));
-            if tab.page == Page::Files && dirs.contains(&tab.cwd) {
+            tab.listings
+                .retain(|dir, _| !dirs.contains(dir) && !dirs.contains(&real_path(dir)));
+            let shown = dirs.contains(&tab.cwd) || dirs.contains(&real_path(&tab.cwd));
+            if tab.page == Page::Files && shown {
                 let keep =
                     Select::Refresh(tab.selected_paths(), tab.current().map(|e| e.path.clone()));
                 let dir = tab.cwd.clone();
@@ -141,4 +148,9 @@ impl Workspace {
         })
         .detach();
     }
+}
+
+/// `path` with symlinks resolved, or as it is when that fails.
+fn real_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
