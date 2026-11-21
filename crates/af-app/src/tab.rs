@@ -116,14 +116,12 @@ impl Tab {
 
     /// The entry under the cursor (keyboard focus, previewed).
     pub fn current(&self) -> Option<&Entry> {
-        self.selection
-            .cursor()
-            .and_then(|ix| self.visible.get(ix))
-            .map(|&i| &self.entries[i])
+        self.selection.cursor().and_then(|ix| self.entry_at(ix))
     }
 
     pub fn entry_at(&self, row: usize) -> Option<&Entry> {
-        self.visible.get(row).map(|&i| &self.entries[i])
+        // `visible` may still index an older, longer listing: never panic.
+        self.visible.get(row).and_then(|&i| self.entries.get(i))
     }
 
     /// Selected entries in view order.
@@ -146,6 +144,22 @@ impl Tab {
     pub fn refilter(&mut self, show_hidden: bool) {
         let keep = self.selected_paths();
         let cursor = self.current().map(|e| e.path.clone());
+        self.refilter_keeping(show_hidden, &keep, cursor.as_deref());
+    }
+
+    /// Replace the listing (a load finished), keeping the selection by path.
+    /// The selection is read before the old entries go, since `visible`
+    /// indexes them.
+    pub fn replace_entries(&mut self, entries: Vec<Entry>, show_hidden: bool) {
+        let keep = self.selected_paths();
+        let cursor = self.current().map(|e| e.path.clone());
+        self.entries = entries;
+        self.visible.clear();
+        self.sort_entries();
+        self.refilter_keeping(show_hidden, &keep, cursor.as_deref());
+    }
+
+    fn refilter_keeping(&mut self, show_hidden: bool, keep: &[PathBuf], cursor: Option<&Path>) {
         let shown: Vec<usize> = (0..self.entries.len())
             .filter(|&i| show_hidden || !self.entries[i].hidden)
             .collect();
@@ -154,12 +168,16 @@ impl Tab {
             .into_iter()
             .map(|j| shown[j])
             .collect();
-        self.reselect(&keep, cursor.as_deref());
+        self.reselect(keep, cursor);
     }
 
     /// Select `paths` (where shown), the cursor on `cursor`.
     pub fn reselect(&mut self, paths: &[PathBuf], cursor: Option<&Path>) {
-        let row_of = |p: &Path| self.visible.iter().position(|&i| self.entries[i].path == p);
+        let row_of = |p: &Path| {
+            self.visible
+                .iter()
+                .position(|&i| self.entries.get(i).is_some_and(|e| e.path == p))
+        };
         let rows: Vec<usize> = paths.iter().filter_map(|p| row_of(p)).collect();
         let cursor_row = cursor.and_then(row_of);
         self.selection = if rows.is_empty() && cursor_row.is_none() {
@@ -177,7 +195,7 @@ impl Tab {
     pub fn row_named(&self, name: &str) -> Option<usize> {
         self.visible
             .iter()
-            .position(|&i| self.entries[i].name == name)
+            .position(|&i| self.entries.get(i).is_some_and(|e| e.name == name))
     }
 
     /// Total bytes of the selected files (folders count as 0 here).
@@ -209,4 +227,48 @@ pub fn is_package(path: &Path) -> bool {
 /// Whether opening `entry` navigates into it.
 pub fn is_folder(entry: &Entry) -> bool {
     entry.is_dir && !is_package(&entry.path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn listing(n: usize) -> Vec<Entry> {
+        (0..n)
+            .map(|i| Entry {
+                name: format!("file{i}"),
+                path: PathBuf::from(format!("/d/file{i}")),
+                is_dir: false,
+                is_symlink: false,
+                hidden: false,
+                size: i as u64,
+                modified: None,
+            })
+            .collect()
+    }
+
+    /// A shorter listing replacing a longer one while row 8 is selected
+    /// used to index past the new entries.
+    #[test]
+    fn shorter_listing_keeps_working() {
+        let mut tab = Tab::new(1, PathBuf::from("/d"), ViewMode::List);
+        tab.replace_entries(listing(10), false);
+        tab.selection.select_only(8);
+        assert_eq!(tab.current().unwrap().name, "file8");
+        tab.replace_entries(listing(2), false);
+        tab.refilter(false);
+        assert!(tab.current().is_none());
+        assert!(tab.selected().is_empty());
+        // Stale indexes are tolerated too, not just after replace_entries.
+        tab.selection.select_only(1);
+        tab.entries.truncate(1);
+        assert!(tab.entry_at(1).is_none());
+        tab.refilter(false);
+        assert_eq!(tab.visible.len(), 1);
+        // The selection survives a reload by path.
+        tab.replace_entries(listing(5), false);
+        tab.selection.select_only(3);
+        tab.replace_entries(listing(5), false);
+        assert_eq!(tab.current().unwrap().name, "file3");
+    }
 }

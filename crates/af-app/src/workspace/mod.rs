@@ -259,12 +259,11 @@ impl Workspace {
         tab.load_ms = ms;
         match listed {
             Ok(entries) => {
-                tab.entries = entries;
-                tab.sort_entries();
+                tab.replace_entries(entries, show_hidden);
                 tab.error = None;
             }
             Err(e) => {
-                tab.entries.clear();
+                tab.replace_entries(Vec::new(), show_hidden);
                 tab.error = Some(format!("Can't open {}: {e}", tab.cwd.display()).into());
             }
         }
