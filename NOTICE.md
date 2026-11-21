@@ -17,3 +17,9 @@ aturfile is licensed under the GNU General Public License v3.0 or later
   `packaging/licenses/lucide-lic.txt`.
 
 App bundles carry these licence texts in `Contents/Resources/Licenses`.
+
+## vendor/gpui-pre-macos
+
+A copy of `gpui-pre-macos` 0.3.12 (Zed's `gpui_macos`, Apache-2.0, licence in
+`vendor/gpui-pre-macos/LICENSE-APACHE`), changed to use only public AppKit API
+for the Mac App Store. The changes are listed in `vendor/gpui-pre-macos/PATCHES.md`.

@@ -240,6 +240,17 @@ jobs:
         if: ${{ !cancelled() }}
         run: scripts/build-mas.sh bundle dist-store
 
+      # App Review rejects private AppKit API. These are the selectors upstream
+      # GPUI used (patched out in vendor/gpui-pre-macos) and the CGS blur call.
+      - name: No private API
+        if: ${{ !cancelled() }}
+        run: |
+          bin=dist-store/aturfile.app/Contents/MacOS/aturfile
+          if strings -a "$bin" | grep -E '_windowResize(NorthWest|NorthEast)|_zoomFill|_opaqueRectForWindowMove|_windowRestorationOptions|NSWindowRestorationOptions|CGSSetWindowBackgroundBlurRadius'; then
+            echo "::error::private AppKit API in the store build (see vendor/gpui-pre-macos/PATCHES.md)"
+            exit 1
+          fi
+
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: ${{ !cancelled() }}
         with:

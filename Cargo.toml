@@ -10,6 +10,8 @@ members = [
     "crates/af-app",
 ]
 # The GPUI app needs a display; `cargo test` at the root covers the engines.
+# vendor/ holds patched third-party crates; they are not linted or tested here.
+exclude = ["vendor"]
 default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean", "crates/af-search", "crates/af-store"]
 
 [workspace.package]
@@ -38,3 +40,8 @@ gpui-kit = "0.9"
 [profile.release]
 lto = "thin"
 codegen-units = 4
+
+# App Store review rejects private AppKit API. This copy of gpui-pre-macos 0.3.12
+# swaps its four private calls for public ones; see vendor/gpui-pre-macos/PATCHES.md.
+[patch.crates-io]
+gpui-pre-macos = { path = "vendor/gpui-pre-macos" }
