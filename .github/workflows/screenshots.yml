@@ -1,0 +1,112 @@
+# App Store screenshots. Manual only: gh workflow run screenshots.yml
+#
+# Raises the runner's display resolution when it can, builds the app, fills a
+# home folder with believable content and captures 1440x900 windows (the
+# App Store's Mac sizes are 1280x800, 1440x900, 2560x1600 and 2880x1800).
+name: Screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: app-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          restore-keys: |
+            app-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            app-macos-
+
+      - name: Display
+        run: |
+          brew install displayplacer >/dev/null 2>&1 || true
+          displayplacer list | tee displays.txt | head -60 || true
+          id="$(awk '/Persistent screen id:/ { print $4; exit }' displays.txt)"
+          for res in 2880x1800 2560x1600 1920x1200 1920x1080 1680x1050 1440x900; do
+            if grep -q "res:$res" displays.txt; then
+              displayplacer "id:$id res:$res origin:(0,0) degree:0" && echo "display set to $res" && break
+            fi
+          done
+          system_profiler SPDisplaysDataType | grep -i resolution || true
+
+      - name: Toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Build
+        run: |
+          cargo build --locked --release -p af-app
+          scripts/bundle-macos.sh target/release/aturfile dist
+
+      - name: Fixture
+        run: |
+          d="$HOME/Documents"
+          mkdir -p "$d/Projects/atlas/src" "$d/Projects/website" "$d/Photos/Iceland" "$d/Invoices" "$d/Music" "$d/Notes"
+          printf '# Atlas\n\nA tiny map renderer.\n\n## Build\n\n```sh\ncargo run --release\n```\n\n- Fast tile cache\n- **Offline** first\n' > "$d/Projects/atlas/README.md"
+          cp crates/af-fs/src/lib.rs "$d/Projects/atlas/src/lib.rs"
+          cp crates/af-fs/src/selection.rs "$d/Projects/atlas/src/selection.rs" 2>/dev/null || true
+          cp Cargo.toml "$d/Projects/atlas/Cargo.toml"
+          printf '<!doctype html>\n<title>Studio</title>\n' > "$d/Projects/website/index.html"
+          printf '# Trip to Iceland\n\n**Day 1**: Reykjavik, Hallgrimskirkja\n\n**Day 2**: Golden Circle\n\n- Thingvellir\n- Geysir\n- Gullfoss\n\n> Pack a rain jacket.\n' > "$d/Notes/Trip to Iceland.md"
+          printf 'Groceries\n- coffee beans\n- oat milk\n- rice\n' > "$d/Notes/Groceries.txt"
+          printf 'Q4 goals\n1. Ship 1.0\n2. Write the docs\n' > "$d/Notes/Q4 goals.txt"
+          for m in 2026-08 2026-09 2026-10; do head -c $((80000 + RANDOM)) /dev/urandom > "$d/Invoices/Invoice $m.pdf"; done
+          head -c 4200000 /dev/urandom > "$d/Music/Field recording.m4a"
+          head -c 2600000 /dev/urandom > "$d/Music/Demo mix.mp3"
+          i=0
+          for f in /System/Library/Desktop\ Pictures/*.heic; do
+            i=$((i + 1))
+            sips -s format jpeg -Z 1600 "$f" --out "$d/Photos/Iceland/IMG_$((4100 + i)).jpg" >/dev/null 2>&1 || true
+          done
+          head -c 9000000 /dev/urandom > "$d/Photos/Iceland.zip"
+          ls -laR "$d" | head -60
+
+      - name: Capture
+        run: |
+          mkdir -p shots
+          swiftc -O -o /tmp/window-id scripts/window-id.swift
+          shot() {
+            local name="$1" wait="$2"; shift 2
+            AF_DEBUG=1 "$@" > "shots/$name.log" 2>&1 &
+            local pid=$! id=""
+            for _ in $(seq 1 60); do
+              if id="$(/tmp/window-id "$pid" 2>/dev/null)"; then break; fi
+              sleep 0.5
+            done
+            [ -n "$id" ] || { echo "::error::$name: no window"; cat "shots/$name.log"; return 1; }
+            sleep "$wait"
+            screencapture -o -x -l "$id" "shots/$name.png"
+            echo "== $name $(sips -g pixelWidth -g pixelHeight "shots/$name.png" | tail -2 | tr -s ' \n' ' ')"
+            cat "shots/$name.log"
+            kill "$pid" || true
+            sleep 1
+          }
+          app=dist/aturfile.app/Contents/MacOS/aturfile
+          d="$HOME/Documents"
+          W=(--window 1440x900)
+          shot 1-photos 10 "$app" "${W[@]}" --view icons --preview --select IMG_4103.jpg "$d/Photos/Iceland"
+          shot 2-columns 8 "$app" "${W[@]}" --view columns --select README.md "$d/Projects/atlas"
+          shot 3-search 10 "$app" "${W[@]}" --search "iceland" "$d"
+          shot 4-cleanup 30 "$app" "${W[@]}" --cleanup --theme "aturfile Dark"
+          shot 5-code 8 "$app" "${W[@]}" --theme "aturfile Dark" --preview --select lib.rs "$d/Projects/atlas/src"
+          shot 6-notes 8 "$app" "${W[@]}" --preview --select "Trip to Iceland.md" "$d/Notes"
+          shot 7-list 8 "$app" "${W[@]}" --preview --select Invoices "$d"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: appstore-screenshots
+          path: shots

@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "af-app"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "af-clean",
  "af-fs",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "af-clean"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "af-mac",
  "chrono",
@@ -147,7 +147,7 @@ dependencies = [
 
 [[package]]
 name = "af-fs"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rayon",
  "tempfile",
@@ -155,7 +155,7 @@ dependencies = [
 
 [[package]]
 name = "af-mac"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libc",
  "objc2 0.6.5",
@@ -165,7 +165,7 @@ dependencies = [
 
 [[package]]
 name = "af-search"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "parking_lot",
  "tempfile",
@@ -173,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "af-store"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -182,7 +182,7 @@ dependencies = [
 
 [[package]]
 name = "af-ui"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "gpui-kit",
 ]
