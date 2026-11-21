@@ -542,7 +542,11 @@ impl Workspace {
 
     pub fn render_grant(&self, folder: &Path, cx: &mut Context<Self>) -> gpui::AnyElement {
         let home = af_clean::paths::home();
-        let name = af_clean::paths::display_path(folder, &home);
+        let name = if folder == home {
+            "your Home folder".to_string()
+        } else {
+            af_clean::paths::display_path(folder, &home)
+        };
         div()
             .flex_1()
             .flex()
