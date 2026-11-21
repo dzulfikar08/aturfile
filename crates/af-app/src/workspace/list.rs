@@ -8,6 +8,7 @@ use gpui_kit::assets::IconName;
 use gpui_kit::component::input::Input;
 use gpui_kit::component::menu::ContextMenuExt as _;
 use gpui_kit::component::{Icon, Sizable as _, h_flex, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::{Drag, Workspace, menus};

@@ -16,6 +16,7 @@ use af_ui::{Tokens, tokens};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, h_flex, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::workspace::Workspace;

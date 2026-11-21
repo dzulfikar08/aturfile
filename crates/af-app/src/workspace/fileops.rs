@@ -14,6 +14,7 @@ use af_ui::metrics::*;
 use af_ui::tokens;
 use gpui_kit::component::h_flex;
 use gpui_kit::component::input::{InputEvent, InputState};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::{Select, Workspace};

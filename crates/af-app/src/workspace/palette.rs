@@ -8,6 +8,7 @@ use af_ui::tokens::{Elevation, tokens};
 use gpui_kit::assets::IconName;
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::component::{Icon, h_flex, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::Workspace;

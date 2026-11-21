@@ -20,6 +20,7 @@ use af_ui::metrics::*;
 use af_ui::tokens;
 use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::component::{ActiveTheme as _, h_flex, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::actions::*;
@@ -250,7 +251,6 @@ impl Workspace {
         };
         let show_hidden = self.show_hidden;
         let tab = &mut self.tabs[ix];
-        let moved = tab.cwd != dir;
         tab.cwd = dir;
         tab.loaded = true;
         tab.load_ms = ms;
@@ -264,9 +264,6 @@ impl Workspace {
                 tab.entries.clear();
                 tab.error = Some(format!("Can't open {}: {e}", tab.cwd.display()).into());
             }
-        }
-        if moved {
-            tab.query.clear();
         }
         tab.refilter(show_hidden);
         match select {
@@ -307,6 +304,7 @@ impl Workspace {
         let from = std::mem::replace(&mut tab.cwd, dir.clone());
         tab.back.push(from);
         tab.forward.clear();
+        tab.query.clear();
         let select = select.map_or(Select::Nothing, Select::Name);
         self.load(self.active, dir, select, cx);
         cx.notify();
@@ -353,6 +351,7 @@ impl Workspace {
                 .map(|c| c.as_os_str().to_string_lossy().into_owned());
             tab.forward.push(from);
             tab.page = Page::Files;
+            tab.query.clear();
             let select = child.map_or(Select::Nothing, Select::Name);
             self.load(self.active, dir, select, cx);
         }
@@ -364,6 +363,7 @@ impl Workspace {
             let from = std::mem::replace(&mut tab.cwd, dir.clone());
             tab.back.push(from);
             tab.page = Page::Files;
+            tab.query.clear();
             self.load(self.active, dir, Select::Nothing, cx);
         }
     }
@@ -1230,11 +1230,7 @@ impl Render for Workspace {
             .bg(t.bg)
             .text_color(t.fg)
             .text_size(FONT_BODY)
-            .font_family(
-                gpui_kit::component::ActiveTheme::theme(cx)
-                    .font_family
-                    .clone(),
-            )
+            .font_family(cx.theme().font_family.clone())
             .child(self.render_title_bar(window, cx))
             .child(
                 h_flex()

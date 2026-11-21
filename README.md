@@ -8,15 +8,38 @@ Mac App Store and as a direct download (one-time licence, one year of updates).
 ## Layout
 
 ```
-crates/af-fs     folder listing: parallel stat, natural sort, type-to-filter
-crates/af-mac    macOS glue: real home, Finder Trash, sandbox folder grants
+crates/af-fs     folder listing (parallel stat, natural sort, type-to-filter),
+                 file kinds, multi-selection, location parsing, preview reads,
+                 file operations with undo (conflict names, copy, move)
+crates/af-mac    macOS glue: real home, Finder Trash, sandbox folder grants,
+                 mounted volumes and free space
 crates/af-clean  cleanup engine: parallel scanner, System Data report,
                  staged queue with protected-path guards, duplicates
-crates/af-app    the GPUI app (binary `aturfile`)
+crates/af-ui     design system (from Kantor): palettes, bundled themes,
+                 colour tokens, metrics, small components, icons
+crates/af-app    the GPUI app (binary `aturfile`), on gpui-kit
 ```
 
-GPUI comes from the VoltrusID fork (see `Cargo.toml`), the same one Voltrus
-Tools ships to the App Store.
+The app is built on [gpui-kit](https://gpui-kit.com) (GPUI plus GPUI
+Component's widgets and the Lucide icons). The window:
+
+- **Title bar** with tabs (each keeps its own folder, history and view) and
+  a "Commands ⌘K" button for the command palette.
+- **Sidebar** (resizable, Cmd-Alt-S): Favorites (standard folders and your
+  pins), Locations (mounted volumes with a capacity bar), Tools (Clean Up).
+- **Toolbar**: back and forward, a breadcrumb path bar (click a folder to go;
+  click empty space or press Cmd-L to type a path, `~` works), the view
+  switcher, the filter field and the preview toggle.
+- **Views**: List (sortable, resizable columns), Columns (Miller columns),
+  Icons (with image thumbnails). All are virtualised.
+- **Preview pane** (resizable, Cmd-Alt-P): images, text and source code,
+  rendered Markdown, folder totals, and the item's details.
+- **Status bar**: item count, selection count and size, free space, view.
+
+Settings (theme, density, view, panels, pins) live in
+`~/Library/Application Support/aturfile/settings.toml` (inside the container
+in the App Store build). The theme follows the system's light or dark mode
+until you pick one in the palette (Cmd-,).
 
 ## Builds
 
@@ -24,30 +47,57 @@ GitHub Actions builds everything (`.github/workflows/ci.yml`): the engines
 are linted and tested on Linux, and the app is linted, tested, built,
 bundled and launched on macOS. Each run uploads `aturfile-macos` (a plain
 bundle plus one signed ad hoc with the App Store sandbox entitlements) and
-`smoke-screenshots`.
+`smoke-screenshots` (every view, both themes, the palette and Clean Up).
 
 ```
-aturfile [--cleanup] [folder]
+aturfile [folder] [--cleanup] [--view list|columns|icons] [--preview]
+         [--select NAME] [--theme NAME] [--density compact|airy]
+         [--palette] [--window WxH]
 ```
 
 ## Keys
 
 | Key | Does |
 | --- | --- |
-| Up / Down, Home / End, Page Up / Down | Move |
-| Enter, Cmd-Down | Open |
+| Up / Down, Home / End, Page Up / Down | Move (Left / Right too in Icons) |
+| Shift-click, Shift-arrows | Extend the selection |
+| Cmd-click | Add or remove an item |
+| Cmd-A | Select all |
+| Cmd-Down, Cmd-O, double-click | Open |
+| Return | Rename (open the match while filtering) |
+| F2 | Rename |
+| Left / Right (Columns) | Enclosing folder / into the selected folder |
 | Backspace (empty filter), Cmd-Up | Enclosing folder |
 | Cmd-[ / Cmd-] | Back / Forward |
 | Any letter | Filter this folder |
-| Escape | Clear the filter |
+| Cmd-F | Filter field |
+| Escape | Clear the filter, close the palette, cancel editing |
+| Cmd-L | Type a location |
 | Space | Quick Look |
+| Cmd-T / Cmd-W | New tab / close tab |
+| Ctrl-Tab, Cmd-Shift-] / Cmd-Shift-[ | Next / previous tab |
+| Cmd-1 / Cmd-2 / Cmd-3 | List / Columns / Icons |
+| Cmd-Alt-S / Cmd-Alt-P | Sidebar / preview pane |
+| Cmd-I | Get Info (shows the preview pane) |
+| Cmd-K | Command palette |
+| Cmd-, | Theme |
+| Cmd-Shift-N | New folder |
+| Cmd-D | Duplicate |
+| Cmd-C / Cmd-X / Cmd-V | Copy / cut / paste items |
+| Cmd-Alt-V | Move the copied items here |
+| Cmd-Z / Cmd-Shift-Z | Undo / redo |
 | Cmd-Backspace | Move to Trash |
+| Cmd-Alt-C | Copy path |
+| Cmd-R | Reveal in Finder |
 | Cmd-Shift-. | Show hidden files |
-| Cmd-1 / Cmd-2 | Files / Clean Up |
-| Cmd-S or Enter (Clean Up) | Stage or unstage the selected row |
+| Cmd-Shift-R | Reload (rescan in Clean Up) |
+| Cmd-Shift-K | Clean Up |
+| Return (Clean Up) | Stage or unstage the selected row |
+| Cmd-S (Clean Up) | Stage or unstage the selected row |
 | Cmd-Shift-Backspace (Clean Up) | Move the queue to Trash |
 
-On Linux, Cmd is Ctrl.
+On Linux, Cmd is Ctrl. Name conflicts get " 2", " 3". Undoing a copy or a
+new folder moves it to the Trash; nothing is deleted outright.
 
 ## Contributing
 

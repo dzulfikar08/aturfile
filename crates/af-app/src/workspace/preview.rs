@@ -13,6 +13,7 @@ use af_ui::tokens;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::text::TextView;
 use gpui_kit::component::{ActiveTheme as _, Icon, h_flex, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::Workspace;

@@ -10,6 +10,7 @@ use af_ui::metrics::*;
 use af_ui::tokens;
 use gpui_kit::component::menu::ContextMenuExt as _;
 use gpui_kit::component::{Icon, h_flex, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::list::file_icon;

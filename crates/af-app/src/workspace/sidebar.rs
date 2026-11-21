@@ -9,6 +9,7 @@ use af_ui::tokens;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::menu::{ContextMenuExt as _, PopupMenu, PopupMenuItem};
 use gpui_kit::component::{Icon, v_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::Workspace;

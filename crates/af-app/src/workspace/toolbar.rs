@@ -7,6 +7,7 @@ use af_ui::tokens;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::input::{Escape, Input};
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, h_flex};
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::Workspace;
@@ -183,7 +184,7 @@ impl Workspace {
             row = row.child(
                 div()
                     .id(("crumb", i))
-                    .flex_shrink()
+                    .flex_shrink(1.)
                     .min_w(px(24.))
                     .px(SPACE_2)
                     .py(px(1.))

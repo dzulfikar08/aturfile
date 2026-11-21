@@ -25,6 +25,7 @@ mod workspace;
 use af_ui::catalog::ThemeId;
 use af_ui::metrics::Density;
 use gpui_kit::component::TitleBar;
+use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use crate::actions::*;
