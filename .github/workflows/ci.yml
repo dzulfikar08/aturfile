@@ -48,11 +48,11 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean -p af-search --all-targets -- -D warnings
+        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean -p af-search -p af-store --all-targets -- -D warnings
 
       - name: Test
         if: ${{ !cancelled() }}
-        run: cargo test --locked -p af-fs -p af-mac -p af-clean -p af-search
+        run: cargo test --locked -p af-fs -p af-mac -p af-clean -p af-search -p af-store
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         # Saved after failed lints too, so the next push doesn't rebuild GPUI.
@@ -173,6 +173,7 @@ jobs:
           smoke airy-nord 8 "$app" --theme Nord --density airy --view icons "$fx"
           smoke palette 6 "$app" --palette "$fx"
           smoke search 8 "$app" --search "report" "$fx"
+          smoke about 5 "$app" --sheet about "$fx"
           # A file created after launch must appear without a reload.
           mkdir -p "$fx/Live" && echo old > "$fx/Live/before.txt"
           (sleep 5; echo new > "$fx/Live/appeared-while-open.txt") &
@@ -194,4 +195,93 @@ jobs:
           path: |
             dist/*.zip
             dist-sandboxed/*.zip
+          if-no-files-found: error
+
+  # The Mac App Store variant: `store` feature (StoreKit 2 Pro unlock),
+  # universal, sandboxed, signed ad hoc. No secrets; signing and upload are
+  # scripts/build-mas.sh package (docs/release.md).
+  store:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: cache
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: store-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-${{ github.run_id }}
+          restore-keys: |
+            store-macos-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+            store-macos-
+
+      - name: Toolchain
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Lint
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
+        run: cargo clippy --locked --keep-going -p af-store -p af-app --all-targets --features af-app/store -- -D warnings
+
+      - name: Test
+        if: ${{ !cancelled() }}
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "13.0"
+        run: cargo test --locked -p af-store -p af-app --features af-app/store
+
+      - name: Bundle (universal, unsigned)
+        if: ${{ !cancelled() }}
+        run: scripts/build-mas.sh bundle dist-store
+
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() }}
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
+      # The store build launches (StoreKit can't answer on CI) and shows the
+      # Pro sheet; the bundle has its icon and the sandbox entitlement.
+      - name: Smoke test
+        if: ${{ !cancelled() }}
+        run: |
+          app=dist-store/aturfile.app
+          test -f "$app/Contents/Resources/AppIcon.icns"
+          codesign -d --entitlements - "$app" | grep -q app-sandbox
+          lipo -archs "$app/Contents/MacOS/aturfile"
+          mkdir -p shots
+          swiftc -O -o /tmp/window-id scripts/window-id.swift
+          "$app/Contents/MacOS/aturfile" --sheet pro > shots/store-pro.log 2>&1 &
+          pid=$! id=""
+          for _ in $(seq 1 60); do
+            if id="$(/tmp/window-id "$pid" 2>/dev/null)"; then break; fi
+            sleep 0.5
+          done
+          [ -n "$id" ] || { echo "::error::no window"; cat shots/store-pro.log; exit 1; }
+          sleep 6
+          kill -0 "$pid" || { echo "::error::store build exited early"; cat shots/store-pro.log; exit 1; }
+          screencapture -o -x -l "$id" shots/store-pro.png
+          cat shots/store-pro.log
+          kill "$pid"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: store-screenshots
+          path: shots
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aturfile-mas-unsigned
+          path: dist-store/*-mas-unsigned.zip
           if-no-files-found: error

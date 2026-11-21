@@ -5,11 +5,12 @@ members = [
     "crates/af-mac",
     "crates/af-clean",
     "crates/af-search",
+    "crates/af-store",
     "crates/af-ui",
     "crates/af-app",
 ]
 # The GPUI app needs a display; `cargo test` at the root covers the engines.
-default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean", "crates/af-search"]
+default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean", "crates/af-search", "crates/af-store"]
 
 [workspace.package]
 version = "0.1.0"

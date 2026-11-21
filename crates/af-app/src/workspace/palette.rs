@@ -91,6 +91,9 @@ enum Cmd {
     Redo,
     ChooseTheme,
     Commands,
+    About,
+    Pro,
+    RestorePurchases,
     Density(Density),
     Theme(usize),
 }
@@ -127,7 +130,7 @@ fn command_rows() -> Vec<Row> {
         keys,
         cmd,
     };
-    vec![
+    let mut rows = vec![
         r("New Tab", Some("Cmd-T"), Cmd::NewTab),
         r("Close Tab", Some("Cmd-W"), Cmd::CloseTab),
         r("Go to Folder\u{2026}", Some("Cmd-L"), Cmd::GoToFolder),
@@ -163,9 +166,15 @@ fn command_rows() -> Vec<Row> {
         r("Redo", Some("Cmd-Shift-Z"), Cmd::Redo),
         r("Theme\u{2026}", Some("Cmd-,"), Cmd::ChooseTheme),
         r("Show All Commands", Some("Cmd-Shift-P"), Cmd::Commands),
+        r("About aturfile", None, Cmd::About),
         r("Density: Compact", None, Cmd::Density(Density::Compact)),
         r("Density: Airy", None, Cmd::Density(Density::Airy)),
-    ]
+    ];
+    if af_store::STORE_BUILD {
+        rows.push(r("aturfile Pro\u{2026}", None, Cmd::Pro));
+        rows.push(r("Restore Purchases", None, Cmd::RestorePurchases));
+    }
+    rows
 }
 
 fn theme_rows(themes: &[ThemeEntry]) -> Vec<Row> {
@@ -523,6 +532,9 @@ impl Workspace {
             }
             Cmd::Theme(_) => {}
             Cmd::Commands => self.open_palette(Mode::Commands, window, cx),
+            Cmd::About => self.open_sheet(super::sheet::Sheet::About, cx),
+            Cmd::Pro => self.open_sheet(super::sheet::Sheet::Pro, cx),
+            Cmd::RestorePurchases => crate::pro::restore(cx),
         }
     }
 

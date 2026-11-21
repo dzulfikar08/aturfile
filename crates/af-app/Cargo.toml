@@ -11,7 +11,13 @@ publish.workspace = true
 name = "aturfile"
 path = "src/main.rs"
 
+[features]
+# Mac App Store build: Pro (tabs, Clean Up's Move to Trash) is sold through
+# StoreKit 2. Without it everything is unlocked.
+store = ["af-store/store"]
+
 [dependencies]
+af-store = { path = "../af-store" }
 af-fs = { path = "../af-fs" }
 af-clean = { path = "../af-clean" }
 af-mac = { path = "../af-mac" }

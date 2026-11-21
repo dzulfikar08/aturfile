@@ -79,8 +79,15 @@ icon_assets!(
 /// Register with `gpui_kit::application().with_assets(AppAssets)`.
 pub struct AppAssets;
 
+/// The app icon, for About and the Pro sheet: `img(APP_ICON)`.
+pub const APP_ICON: &str = "brand/app-icon.png";
+const APP_ICON_PNG: &[u8] = include_bytes!("../../../packaging/AppIcon.png");
+
 impl AssetSource for AppAssets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
+        if path == APP_ICON {
+            return Ok(Some(Cow::Borrowed(APP_ICON_PNG)));
+        }
         if let Some(bytes) = AppIcons.load(path)? {
             return Ok(Some(bytes));
         }
@@ -90,6 +97,9 @@ impl AssetSource for AppAssets {
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {
         let mut paths = Assets.list(path)?;
         paths.extend(AppIcons.list(path)?);
+        if APP_ICON.starts_with(path) {
+            paths.push(APP_ICON.into());
+        }
         paths.sort();
         paths.dedup();
         Ok(paths)

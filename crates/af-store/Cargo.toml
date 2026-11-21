@@ -1,0 +1,24 @@
+[package]
+name = "af-store"
+description = "aturfile Pro: the Mac App Store unlock through StoreKit 2 (feature `store`); source builds are fully unlocked"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Mac App Store build: Pro is bought through StoreKit 2
+# (swift/StoreKitBridge.swift, compiled by build.rs). Without it (source and
+# GitHub builds) everything is unlocked and nothing is sold.
+store = []
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

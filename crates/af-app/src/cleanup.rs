@@ -241,6 +241,10 @@ impl Cleanup {
     }
 
     pub fn trash_queue(ws: &mut Workspace, cx: &mut Context<Workspace>) {
+        // Moving the queue to the Trash is Pro in App Store builds.
+        if !ws.cleanup.queue.items.is_empty() && !ws.require_pro(cx) {
+            return;
+        }
         if ws.cleanup.queue.items.is_empty() || matches!(ws.cleanup.phase, Phase::Trashing) {
             return;
         }

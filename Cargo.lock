@@ -117,6 +117,7 @@ dependencies = [
  "af-fs",
  "af-mac",
  "af-search",
+ "af-store",
  "af-ui",
  "async-channel",
  "chrono",
@@ -167,6 +168,15 @@ name = "af-search"
 version = "0.1.0"
 dependencies = [
  "parking_lot",
+ "tempfile",
+]
+
+[[package]]
+name = "af-store"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
  "tempfile",
 ]
 

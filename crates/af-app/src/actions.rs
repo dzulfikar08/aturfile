@@ -22,6 +22,7 @@ actions!(
         PrevTab,
         TogglePalette,
         ShowCommands,
+        ShowAbout,
         OpenSettings,
         Cancel,
         ToggleSidebar,

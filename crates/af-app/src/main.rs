@@ -10,6 +10,7 @@
 //!     --density compact|airy
 //!     --palette              open the command list
 //!     --search QUERY         open the search dialog with QUERY
+//!     --sheet about|pro      open the About or Pro sheet
 //!     --window WxH           window size in points
 //! ```
 
@@ -19,6 +20,7 @@ mod actions;
 mod appearance;
 mod cleanup;
 mod format;
+mod pro;
 mod settings;
 mod tab;
 mod workspace;
@@ -56,6 +58,7 @@ fn parse_args() -> Args {
             "--preview" => args.start.preview = true,
             "--palette" => args.start.palette = true,
             "--search" => args.start.search = it.next(),
+            "--sheet" => args.start.sheet = it.next(),
             "--view" => args.start.view = it.next().map(|v| ViewMode::parse(&v)),
             "--select" => args.start.select = it.next(),
             "--theme" => args.theme = it.next(),
@@ -78,6 +81,7 @@ fn parse_args() -> Args {
 fn menus() -> Vec<Menu> {
     vec![
         Menu::new("aturfile").items([
+            MenuItem::action("About aturfile", ShowAbout),
             MenuItem::action("Settings\u{2026}", OpenSettings),
             MenuItem::separator(),
             MenuItem::action("Quit aturfile", Quit),
@@ -147,6 +151,7 @@ fn main() {
         .run(move |cx: &mut App| {
             gpui_kit::init(cx);
             appearance::init(theme, density, cx);
+            pro::init(cx);
             actions::bind_keys(cx);
             cx.on_action(|_: &Quit, cx| cx.quit());
             cx.set_menus(menus());

@@ -21,6 +21,7 @@ crates/af-mac    macOS glue: real home, Finder Trash, sandbox folder grants,
 crates/af-clean  cleanup engine: parallel scanner, System Data report,
                  staged queue with protected-path guards, duplicates
 crates/af-search file-name index (bounded, background) and fuzzy ranking
+crates/af-store  Pro unlock through StoreKit 2 (feature `store`)
 crates/af-ui     design system (from Kantor): palettes, bundled themes,
                  colour tokens, metrics, small components, icons
 crates/af-app    the GPUI app (binary `aturfile`), on gpui-kit
@@ -53,6 +54,14 @@ Settings (theme, density, view, panels, pins) live in
 in the App Store build). The theme follows the system's light or dark mode
 until you pick one in the palette (Cmd-,).
 
+## Free and Pro
+
+Source and GitHub builds are fully unlocked. The Mac App Store build
+(`--features af-app/store`, StoreKit 2 through a small Swift bridge in
+`crates/af-store`) sells one Pro unlock: more than one tab, and Clean Up's
+Move to Trash. Everything else stays free. Release steps:
+[docs/release.md](docs/release.md).
+
 ## Builds
 
 GitHub Actions builds everything (`.github/workflows/ci.yml`): the engines
@@ -64,7 +73,7 @@ bundle plus one signed ad hoc with the App Store sandbox entitlements) and
 ```
 aturfile [folder] [--cleanup] [--view list|columns|icons] [--preview]
          [--select NAME] [--theme NAME] [--density compact|airy]
-         [--palette] [--search QUERY] [--window WxH]
+         [--palette] [--search QUERY] [--sheet about|pro] [--window WxH]
 ```
 
 ## Keys

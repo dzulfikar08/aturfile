@@ -8,6 +8,7 @@ mod list;
 mod menus;
 mod palette;
 mod preview;
+mod sheet;
 mod shell;
 mod sidebar;
 mod toolbar;
@@ -44,6 +45,8 @@ pub struct StartOptions {
     pub palette: bool,
     /// Open the search dialog with this query.
     pub search: Option<String>,
+    /// Open a sheet: `about` or `pro`.
+    pub sheet: Option<String>,
 }
 
 /// A panel edge or list column being dragged.
@@ -83,6 +86,7 @@ pub struct Workspace {
     pub(crate) palette: Option<palette::PaletteState>,
     /// The file-name index behind Cmd-K, built on first use.
     pub(crate) search_index: Option<palette::SearchIndex>,
+    pub(crate) sheet: Option<sheet::Sheet>,
     pub(crate) preview: preview::Preview,
     pub(crate) drag: Option<Drag>,
     pub cleanup: Cleanup,
@@ -161,6 +165,7 @@ impl Workspace {
             editing_location: false,
             palette: None,
             search_index: None,
+            sheet: None,
             preview: preview::Preview::default(),
             drag: None,
             cleanup: Cleanup::default(),
@@ -185,6 +190,11 @@ impl Workspace {
         }
         if opts.palette {
             this.open_palette(palette::Mode::Commands, window, cx);
+        }
+        match opts.sheet.as_deref() {
+            Some("about") => this.open_sheet(sheet::Sheet::About, cx),
+            Some("pro") => this.open_sheet(sheet::Sheet::Pro, cx),
+            _ => {}
         }
         if let Some(query) = opts.search {
             this.open_palette(palette::Mode::Search, window, cx);
@@ -517,6 +527,10 @@ impl Workspace {
     // ---- tabs -------------------------------------------------------------
 
     pub(crate) fn new_tab_at(&mut self, dir: PathBuf, cx: &mut Context<Self>) {
+        // More than one tab is Pro in App Store builds.
+        if !self.require_pro(cx) {
+            return;
+        }
         let id = self.next_tab_id;
         self.next_tab_id += 1;
         let view = self.tab().view;
@@ -760,6 +774,9 @@ impl Workspace {
             self.open_palette(palette::Mode::Search, window, cx);
         }
     }
+    fn on_show_about(&mut self, _: &ShowAbout, _: &mut Window, cx: &mut Context<Self>) {
+        self.open_sheet(sheet::Sheet::About, cx);
+    }
     fn on_show_commands(&mut self, _: &ShowCommands, window: &mut Window, cx: &mut Context<Self>) {
         self.open_palette(palette::Mode::Commands, window, cx);
     }
@@ -767,7 +784,9 @@ impl Workspace {
         self.open_palette(palette::Mode::Themes, window, cx);
     }
     fn on_cancel(&mut self, _: &Cancel, window: &mut Window, cx: &mut Context<Self>) {
-        if self.palette.is_some() {
+        if self.sheet.is_some() {
+            self.close_sheet(cx);
+        } else if self.palette.is_some() {
             self.close_palette(window, cx);
         } else if self.ops.renaming.is_some() {
             self.cancel_rename(window, cx);
@@ -1201,6 +1220,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_prev_tab))
             .on_action(cx.listener(Self::on_toggle_palette))
             .on_action(cx.listener(Self::on_show_commands))
+            .on_action(cx.listener(Self::on_show_about))
             .on_action(cx.listener(Self::on_open_settings))
             .on_action(cx.listener(Self::on_cancel))
             .on_action(cx.listener(Self::on_toggle_sidebar))
@@ -1285,5 +1305,6 @@ impl Render for Workspace {
             )
             .child(self.render_status_bar(cx))
             .children(self.render_palette(window, cx))
+            .children(self.render_sheet(cx))
     }
 }
