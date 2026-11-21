@@ -132,9 +132,12 @@ jobs:
               echo "::error::$name exited early"; cat "shots/$name.log"; return 1
             fi
             screencapture -o -x -l "$id" "shots/$name.png"
+            echo "== $name"; cat "shots/$name.log"
             kill "$pid"
           }
+          export AF_DEBUG=1
           smoke files dist/aturfile.app/Contents/MacOS/aturfile
+          smoke oversized dist/aturfile.app/Contents/MacOS/aturfile --window 1440x900
           smoke cleanup dist/aturfile.app/Contents/MacOS/aturfile --cleanup
           smoke sandboxed dist-sandboxed/aturfile.app/Contents/MacOS/aturfile
 

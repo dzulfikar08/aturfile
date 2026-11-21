@@ -66,12 +66,19 @@ fn key_bindings() -> Vec<KeyBinding> {
 }
 
 fn main() {
-    // `aturfile [--cleanup] [folder]`
+    // `aturfile [--cleanup] [--window WxH] [folder]`
     let mut mode = browser::Mode::Files;
     let mut start = None;
-    for arg in std::env::args().skip(1) {
+    let mut window_size: Option<(f32, f32)> = None;
+    let mut args = std::env::args().skip(1);
+    while let Some(arg) = args.next() {
         if arg == "--cleanup" {
             mode = browser::Mode::Cleanup;
+        } else if arg == "--window" {
+            window_size = args.next().and_then(|v| {
+                let (w, h) = v.split_once('x')?;
+                Some((w.parse().ok()?, h.parse().ok()?))
+            });
         } else {
             start = Some(std::path::PathBuf::from(arg));
         }
@@ -103,7 +110,19 @@ fn main() {
             },
         ]);
 
-        let bounds = Bounds::centered(None, size(px(1180.0), px(760.0)), cx);
+        // Never ask for more than the screen: macOS would shrink the window
+        // before it is on a screen, which can leave GPUI drawing at the wrong scale.
+        let (w, h) = window_size.unwrap_or_else(|| {
+            let screen = cx
+                .primary_display()
+                .map(|d| d.bounds().size)
+                .unwrap_or(size(px(1440.0), px(900.0)));
+            (
+                1180.0_f32.min(f32::from(screen.width) * 0.92),
+                760.0_f32.min(f32::from(screen.height) * 0.85),
+            )
+        });
+        let bounds = Bounds::centered(None, size(px(w), px(h)), cx);
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(TitlebarOptions {

@@ -44,6 +44,8 @@ pub struct Workspace {
     pub cleanup: Cleanup,
     /// Folders the App Sandbox lets us read (unused outside the sandbox).
     grants: af_mac::Grants,
+    /// AF_DEBUG: last logged window metrics.
+    debug_last: Option<String>,
 }
 
 impl Workspace {
@@ -70,6 +72,7 @@ impl Workspace {
             _load: None,
             cleanup: Cleanup::default(),
             grants: af_mac::Grants::restore(),
+            debug_last: None,
         };
         this.load(start, None, cx);
         if mode == Mode::Cleanup {
@@ -894,7 +897,18 @@ impl Focusable for Workspace {
 }
 
 impl Render for Workspace {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if std::env::var_os("AF_DEBUG").is_some() {
+            let now = format!(
+                "scale {} viewport {:?}",
+                window.scale_factor(),
+                window.viewport_size()
+            );
+            if self.debug_last.as_deref() != Some(now.as_str()) {
+                eprintln!("aturfile: {now}");
+                self.debug_last = Some(now);
+            }
+        }
         let main = match self.mode {
             Mode::Files => div()
                 .flex_1()
