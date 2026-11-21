@@ -16,7 +16,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
-# Placeholder until the bundle id is registered (docs/release.md).
+# Registered with Apple on 2026-11-21 (docs/release.md).
 BUNDLE_ID="${BUNDLE_ID:-com.atur.aturfile}"
 usage="usage: $0 bundle <out dir> | package <app> <out dir> [--upload]"
 # StoreKit 2 and the Swift concurrency runtime built into macOS (see
