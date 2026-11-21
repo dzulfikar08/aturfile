@@ -41,6 +41,8 @@ pub struct StartOptions {
     /// Select this child of `dir` once it is listed.
     pub select: Option<String>,
     pub palette: bool,
+    /// Open the search dialog with this query.
+    pub search: Option<String>,
 }
 
 /// A panel edge or list column being dragged.
@@ -76,6 +78,8 @@ pub struct Workspace {
     pub(crate) location: Entity<InputState>,
     pub(crate) editing_location: bool,
     pub(crate) palette: Option<palette::PaletteState>,
+    /// The file-name index behind Cmd-K, built on first use.
+    pub(crate) search_index: Option<palette::SearchIndex>,
     pub(crate) preview: preview::Preview,
     pub(crate) drag: Option<Drag>,
     pub cleanup: Cleanup,
@@ -148,6 +152,7 @@ impl Workspace {
             location,
             editing_location: false,
             palette: None,
+            search_index: None,
             preview: preview::Preview::default(),
             drag: None,
             cleanup: Cleanup::default(),
@@ -171,6 +176,10 @@ impl Workspace {
         }
         if opts.palette {
             this.open_palette(palette::Mode::Commands, window, cx);
+        }
+        if let Some(query) = opts.search {
+            this.open_palette(palette::Mode::Search, window, cx);
+            this.set_palette_text(query, window, cx);
         }
         this
     }
@@ -732,8 +741,11 @@ impl Workspace {
         if self.palette.is_some() {
             self.close_palette(window, cx);
         } else {
-            self.open_palette(palette::Mode::Commands, window, cx);
+            self.open_palette(palette::Mode::Search, window, cx);
         }
+    }
+    fn on_show_commands(&mut self, _: &ShowCommands, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_palette(palette::Mode::Commands, window, cx);
     }
     fn on_open_settings(&mut self, _: &OpenSettings, window: &mut Window, cx: &mut Context<Self>) {
         self.open_palette(palette::Mode::Themes, window, cx);
@@ -1171,6 +1183,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_next_tab))
             .on_action(cx.listener(Self::on_prev_tab))
             .on_action(cx.listener(Self::on_toggle_palette))
+            .on_action(cx.listener(Self::on_show_commands))
             .on_action(cx.listener(Self::on_open_settings))
             .on_action(cx.listener(Self::on_cancel))
             .on_action(cx.listener(Self::on_toggle_sidebar))

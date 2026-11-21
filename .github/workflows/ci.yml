@@ -48,11 +48,11 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean --all-targets -- -D warnings
+        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean -p af-search --all-targets -- -D warnings
 
       - name: Test
         if: ${{ !cancelled() }}
-        run: cargo test --locked -p af-fs -p af-mac -p af-clean
+        run: cargo test --locked -p af-fs -p af-mac -p af-clean -p af-search
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         # Saved after failed lints too, so the next push doesn't rebuild GPUI.
@@ -170,6 +170,7 @@ jobs:
           smoke light 8 "$app" --theme "aturfile Light" --preview --select notes.txt "$fx"
           smoke airy-nord 8 "$app" --theme Nord --density airy --view icons "$fx"
           smoke palette 6 "$app" --palette "$fx"
+          smoke search 8 "$app" --search "report" "$fx"
           smoke cleanup 20 "$app" --cleanup --theme "aturfile Dark"
           AF_SCAN_ROOT="$fx" smoke cleanup-light 10 "$app" --cleanup --theme "aturfile Light"
           smoke sandboxed 8 dist-sandboxed/aturfile.app/Contents/MacOS/aturfile

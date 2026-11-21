@@ -132,7 +132,12 @@ impl Workspace {
             .text_color(t.fg_muted)
             .cursor_pointer()
             .hover(|s| s.bg(t.hover))
-            .when(!compact, |d| d.child("Commands"))
+            .child(
+                gpui_kit::component::Icon::new(IconName::Search)
+                    .size(ICON_SM)
+                    .text_color(t.fg_dim),
+            )
+            .when(!compact, |d| d.child("Search"))
             .child(kbd("Cmd K", cx))
             .on_click(cx.listener(|ws, _: &ClickEvent, window, cx| {
                 ws.on_toggle_palette(&TogglePalette, window, cx)

@@ -8,7 +8,8 @@
 //!     --select NAME          select NAME in the folder once it is listed
 //!     --theme NAME           use a bundled theme for this run ("system" follows macOS)
 //!     --density compact|airy
-//!     --palette              open the command palette
+//!     --palette              open the command list
+//!     --search QUERY         open the search dialog with QUERY
 //!     --window WxH           window size in points
 //! ```
 
@@ -54,6 +55,7 @@ fn parse_args() -> Args {
             "--cleanup" => args.start.cleanup = true,
             "--preview" => args.start.preview = true,
             "--palette" => args.start.palette = true,
+            "--search" => args.start.search = it.next(),
             "--view" => args.start.view = it.next().map(|v| ViewMode::parse(&v)),
             "--select" => args.start.select = it.next(),
             "--theme" => args.theme = it.next(),
@@ -114,7 +116,8 @@ fn menus() -> Vec<Menu> {
             MenuItem::action("Show Preview", TogglePreview),
             MenuItem::action("Show Hidden Files", ToggleHidden),
             MenuItem::separator(),
-            MenuItem::action("Commands\u{2026}", TogglePalette),
+            MenuItem::action("Search\u{2026}", TogglePalette),
+            MenuItem::action("Commands\u{2026}", ShowCommands),
         ]),
         Menu::new("Go").items([
             MenuItem::action("Back", Back),

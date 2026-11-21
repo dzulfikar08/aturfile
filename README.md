@@ -15,6 +15,7 @@ crates/af-mac    macOS glue: real home, Finder Trash, sandbox folder grants,
                  mounted volumes and free space
 crates/af-clean  cleanup engine: parallel scanner, System Data report,
                  staged queue with protected-path guards, duplicates
+crates/af-search file-name index (bounded, background) and fuzzy ranking
 crates/af-ui     design system (from Kantor): palettes, bundled themes,
                  colour tokens, metrics, small components, icons
 crates/af-app    the GPUI app (binary `aturfile`), on gpui-kit
@@ -24,7 +25,13 @@ The app is built on [gpui-kit](https://gpui-kit.com) (GPUI plus GPUI
 Component's widgets and the Lucide icons). The window:
 
 - **Title bar** with tabs (each keeps its own folder, history and view) and
-  a "Commands ⌘K" button for the command palette.
+  a "Search ⌘K" button.
+- **Search** (Cmd-K): file and folder names across Home and mounted volumes,
+  indexed on a background thread the first time (`~/Library` and hidden
+  folders skipped; at most 10 s and 200,000 items, with a note when results
+  are partial). Typing ranks names fuzzily (exact, then prefix, then
+  contiguous, with word boundaries counting more); matching commands stay on
+  top, and the empty field lists every command. Names only, never contents.
 - **Sidebar** (resizable, Cmd-Alt-S): Favorites (standard folders and your
   pins), Locations (mounted volumes with a capacity bar), Tools (Clean Up).
 - **Toolbar**: back and forward, a breadcrumb path bar (click a folder to go;
@@ -52,7 +59,7 @@ bundle plus one signed ad hoc with the App Store sandbox entitlements) and
 ```
 aturfile [folder] [--cleanup] [--view list|columns|icons] [--preview]
          [--select NAME] [--theme NAME] [--density compact|airy]
-         [--palette] [--window WxH]
+         [--palette] [--search QUERY] [--window WxH]
 ```
 
 ## Keys
@@ -79,7 +86,8 @@ aturfile [folder] [--cleanup] [--view list|columns|icons] [--preview]
 | Cmd-1 / Cmd-2 / Cmd-3 | List / Columns / Icons |
 | Cmd-Alt-S / Cmd-Alt-P | Sidebar / preview pane |
 | Cmd-I | Get Info (shows the preview pane) |
-| Cmd-K | Command palette |
+| Cmd-K | Search files by name (empty: commands; Return opens the folder or shows the file in it, Cmd-Return opens it in its app) |
+| Cmd-Shift-P | All commands |
 | Cmd-, | Theme |
 | Cmd-Shift-N | New folder |
 | Cmd-D | Duplicate |
