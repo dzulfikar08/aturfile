@@ -132,6 +132,11 @@ impl Workspace {
         }));
     }
 
+    /// Whether the preview shows `path`.
+    pub(crate) fn preview_shows(&self, path: &std::path::Path) -> bool {
+        self.preview.key.as_deref() == Some(path)
+    }
+
     /// Forget the loaded preview (the item changed on disk).
     pub(crate) fn invalidate_preview(&mut self) {
         self.preview.key = None;

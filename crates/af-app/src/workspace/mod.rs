@@ -11,6 +11,7 @@ mod preview;
 mod shell;
 mod sidebar;
 mod toolbar;
+mod watch;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -64,6 +65,8 @@ pub(crate) enum Select {
     Name(String),
     /// Keep these paths selected (a reload).
     Keep(Vec<PathBuf>, Option<PathBuf>),
+    /// The folder changed on disk: keep the selection and don't scroll.
+    Refresh(Vec<PathBuf>, Option<PathBuf>),
 }
 
 pub struct Workspace {
@@ -84,6 +87,7 @@ pub struct Workspace {
     pub(crate) drag: Option<Drag>,
     pub cleanup: Cleanup,
     pub(crate) ops: FileOps,
+    pub(crate) watch: watch::Watch,
     /// Folders the App Sandbox lets us read (unused outside the sandbox).
     pub(crate) grants: af_mac::Grants,
     /// A message for the status bar ("Moved 3 items to Trash").
@@ -135,7 +139,11 @@ impl Workspace {
                 {
                     break;
                 }
-                cx.background_executor().timer(Duration::from_secs(5)).await;
+                // Mounts arrive through the /Volumes watch; this keeps the
+                // free space current.
+                cx.background_executor()
+                    .timer(Duration::from_secs(20))
+                    .await;
             }
         });
 
@@ -157,6 +165,7 @@ impl Workspace {
             drag: None,
             cleanup: Cleanup::default(),
             ops,
+            watch: watch::Watch::new(cx),
             grants: af_mac::Grants::restore(),
             notice: None,
             right_click_on_row: false,
@@ -277,6 +286,7 @@ impl Workspace {
             }
         }
         tab.refilter(show_hidden);
+        let mut quiet = false;
         match select {
             Select::Nothing => tab.selection.clear(),
             Select::Name(name) => {
@@ -286,9 +296,15 @@ impl Workspace {
                     .unwrap_or_default();
             }
             Select::Keep(paths, cursor) => tab.reselect(&paths, cursor.as_deref()),
+            Select::Refresh(paths, cursor) => {
+                tab.reselect(&paths, cursor.as_deref());
+                quiet = true;
+            }
         }
-        let row = tab.selection.cursor().unwrap_or(0);
-        tab.scroll.scroll_to_item(row, ScrollStrategy::Center);
+        if !quiet {
+            let row = tab.selection.cursor().unwrap_or(0);
+            tab.scroll.scroll_to_item(row, ScrollStrategy::Center);
+        }
         // Miller columns re-read what they show.
         tab.listings.clear();
         tab.listing_tasks.clear();
@@ -1158,6 +1174,7 @@ impl Render for Workspace {
         window.set_rem_size(REM);
         self.debug_metrics(window);
         self.sync_filter(window, cx);
+        self.sync_watches();
         let title = self.tab().title();
         window.set_window_title(&title);
         let t = tokens(cx);

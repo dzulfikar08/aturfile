@@ -116,6 +116,8 @@ jobs:
           scripts/bundle-macos.sh target/release/aturfile dist
           mkdir -p dist-sandboxed
           scripts/bundle-macos.sh target/release/aturfile dist-sandboxed packaging/entitlements.mas.plist
+          test -f dist/aturfile.app/Contents/Resources/AppIcon.icns || { echo "::error::no AppIcon.icns in the bundle"; exit 1; }
+          sips -g pixelWidth dist/aturfile.app/Contents/Resources/AppIcon.icns
 
       # Launch each bundle in each view, let it render (and scan, in Clean
       # Up), capture its window, and fail if the app died on the way. The
@@ -171,6 +173,10 @@ jobs:
           smoke airy-nord 8 "$app" --theme Nord --density airy --view icons "$fx"
           smoke palette 6 "$app" --palette "$fx"
           smoke search 8 "$app" --search "report" "$fx"
+          # A file created after launch must appear without a reload.
+          mkdir -p "$fx/Live" && echo old > "$fx/Live/before.txt"
+          (sleep 5; echo new > "$fx/Live/appeared-while-open.txt") &
+          smoke live 9 "$app" --select before.txt "$fx/Live"
           smoke cleanup 20 "$app" --cleanup --theme "aturfile Dark"
           AF_SCAN_ROOT="$fx" smoke cleanup-light 10 "$app" --cleanup --theme "aturfile Light"
           smoke sandboxed 8 dist-sandboxed/aturfile.app/Contents/MacOS/aturfile
