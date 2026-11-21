@@ -81,7 +81,10 @@ impl Cleanup {
         let started = Instant::now();
         let shared = progress.clone();
         let work = cx.background_executor().spawn(async move {
-            let home = af_clean::paths::home();
+            // AF_SCAN_ROOT: scan another folder (CI screenshots a small one).
+            let home = std::env::var_os("AF_SCAN_ROOT")
+                .map(PathBuf::from)
+                .unwrap_or_else(af_clean::paths::home);
             let opts = ScanOptions {
                 keep_file_nodes: false,
                 ..ScanOptions::default()
