@@ -285,7 +285,7 @@ mod tests {
 
     /// Control outlines stand 3:1 apart from every surface, in every bundled
     /// theme, and stay quieter than text.
-    #[test]
+    #[std::prelude::v1::test]
     fn control_borders_reach_three_to_one() {
         for theme in catalog::all() {
             let p = &theme.palette;
@@ -305,7 +305,7 @@ mod tests {
     }
 
     /// File-kind icons are visible on the view in every bundled theme.
-    #[test]
+    #[std::prelude::v1::test]
     fn kind_colours_are_visible() {
         for theme in catalog::all() {
             let t = Tokens::from_palette(&theme.palette);

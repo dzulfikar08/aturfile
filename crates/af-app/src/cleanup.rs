@@ -10,13 +10,15 @@ use af_clean::cleanup::{CleanupQueue, Disposal, StagedItem};
 use af_clean::other::Safety;
 use af_clean::{Progress, ScanOptions};
 use af_fs::format_size;
-use gpui::{
-    ClickEvent, Context, ScrollStrategy, SharedString, Task, UniformListScrollHandle, div,
-    prelude::*, px, uniform_list,
-};
+use af_ui::components::{IconButtonExt as _, badge, icon_button, meter, section_label};
+use af_ui::metrics::*;
+use af_ui::{Tokens, tokens};
+use gpui_kit::assets::IconName;
+use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, h_flex, v_flex};
+use gpui_kit::*;
 
-use crate::browser::{Workspace, tool_button};
-use crate::theme;
+use crate::workspace::Workspace;
 
 const TOP_FOLDERS: usize = 15;
 
@@ -57,6 +59,8 @@ enum Phase {
 #[derive(Default)]
 pub struct Cleanup {
     phase: Phase,
+    /// The biggest category, for the size bars.
+    max_total: u64,
     rows: Vec<Row>,
     selected: usize,
     queue: CleanupQueue,
@@ -93,6 +97,7 @@ impl Cleanup {
                 match result {
                     Ok((scan, report)) => {
                         c.rows = build_rows(&scan, &report);
+                        c.refresh_max();
                         c.phase = Phase::Ready {
                             scanned: scan.node.logical,
                             files: scan.node.files,
@@ -130,6 +135,18 @@ impl Cleanup {
         c._scan = Some(scan_task);
         c._poll = Some(poll);
         cx.notify();
+    }
+
+    fn refresh_max(&mut self) {
+        self.max_total = self
+            .rows
+            .iter()
+            .filter_map(|r| match r {
+                Row::Header { total, .. } => Some(*total),
+                Row::Item { .. } => None,
+            })
+            .max()
+            .unwrap_or(0);
     }
 
     fn first_item(&self) -> Option<usize> {
@@ -265,6 +282,7 @@ impl Cleanup {
                     errors: 0,
                 };
                 c.selected = c.selected.min(c.rows.len().saturating_sub(1));
+                c.refresh_max();
                 cx.notify();
             });
         });
@@ -341,24 +359,29 @@ fn safety_rank(s: Safety) -> u8 {
     }
 }
 
-fn safety_badge(s: Safety) -> impl IntoElement {
-    let (label, color) = match s {
-        Safety::Safe => ("SAFE", theme::safe()),
-        Safety::Review => ("REVIEW", theme::review()),
-        Safety::Info => ("INFO", theme::muted()),
-    };
-    div()
-        .px_1()
-        .rounded_sm()
-        .border_1()
-        .border_color(color)
-        .text_color(color)
-        .text_xs()
-        .child(label)
+fn safety_color(s: Safety, t: &Tokens) -> Hsla {
+    match s {
+        Safety::Safe => t.success,
+        Safety::Review => t.warning,
+        Safety::Info => t.fg_muted,
+    }
 }
 
+fn safety_badge(s: Safety, t: &Tokens) -> Div {
+    let label = match s {
+        Safety::Safe => "Safe",
+        Safety::Review => "Review",
+        Safety::Info => "Info",
+    };
+    badge(label, safety_color(s, t))
+}
+
+/// Every row has one height (`uniform_list`): headers and items alike.
+const ROW_HEIGHT: Pixels = px(32.);
+
 impl Workspace {
-    pub fn render_cleanup(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub fn render_cleanup(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let t = tokens(cx);
         let c = &self.cleanup;
         let summary: SharedString = match &c.phase {
             Phase::Idle => "Not scanned yet".into(),
@@ -392,6 +415,7 @@ impl Workspace {
             Phase::Ready { .. } => "Done".into(),
             Phase::Trashing => "Moving to Trash\u{2026}".into(),
         };
+        let scanning = matches!(c.phase, Phase::Scanning { .. });
         let safe_total: u64 = c
             .rows
             .iter()
@@ -405,55 +429,78 @@ impl Workspace {
             })
             .sum();
 
-        let header = div()
-            .pt(px(10.0))
-            .h(px(64.0))
-            .px_4()
-            .flex()
-            .items_center()
-            .gap_3()
+        let header = h_flex()
+            .flex_none()
+            .h(px(64.))
+            .px(SPACE_8)
+            .gap(SPACE_5)
             .border_b_1()
-            .border_color(theme::border())
+            .border_color(t.border)
             .child(
                 div()
+                    .size(px(34.))
+                    .flex_none()
+                    .rounded(RADIUS_LG)
+                    .bg(t.accent_soft)
                     .flex()
-                    .flex_col()
-                    .child(div().text_lg().child("Clean Up"))
-                    .child(div().text_xs().text_color(theme::muted()).child(summary)),
-            )
-            .child(div().flex_1())
-            .when(safe_total > 0, |s| {
-                s.child(
-                    tool_button(
-                        "stage-safe",
-                        &format!("Stage all safe ({})", format_size(safe_total)),
-                        true,
-                    )
-                    .border_1()
-                    .border_color(theme::safe())
-                    .on_click(
-                        cx.listener(|ws, _: &ClickEvent, _, cx| ws.cleanup.stage_all_safe(cx)),
+                    .items_center()
+                    .justify_center()
+                    .child(
+                        Icon::new(IconName::BrushCleaning)
+                            .size(ICON_LG)
+                            .text_color(t.accent),
                     ),
+            )
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(SPACE_1)
+                    .child(
+                        div()
+                            .text_size(FONT_TITLE)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("Clean Up"),
+                    )
+                    .child(
+                        div()
+                            .text_size(FONT_SMALL)
+                            .text_color(t.fg_muted)
+                            .truncate()
+                            .child(summary),
+                    ),
+            )
+            .when(safe_total > 0, |d| {
+                d.child(
+                    Button::new("stage-safe")
+                        .small()
+                        .outline()
+                        .label(format!("Stage all safe ({})", format_size(safe_total)))
+                        .on_click(cx.listener(|ws, _, _, cx| ws.cleanup.stage_all_safe(cx))),
                 )
             })
             .child(
-                tool_button(
-                    "rescan",
-                    "Rescan",
-                    !matches!(c.phase, Phase::Scanning { .. }),
-                )
-                .border_1()
-                .border_color(theme::border())
-                .on_click(cx.listener(|ws, _: &ClickEvent, _, cx| Cleanup::start_scan(ws, cx))),
+                Button::new("rescan")
+                    .small()
+                    .outline()
+                    .icon(IconName::RefreshCw)
+                    .label("Rescan")
+                    .disabled(scanning)
+                    .on_click(cx.listener(|ws, _, _, cx| Cleanup::start_scan(ws, cx))),
             );
 
         let list = if c.rows.is_empty() {
-            div()
+            v_flex()
                 .flex_1()
-                .flex()
                 .items_center()
                 .justify_center()
-                .text_color(theme::muted())
+                .gap(SPACE_4)
+                .text_color(t.fg_muted)
+                .child(
+                    Icon::new(IconName::HardDrive)
+                        .size(px(40.))
+                        .text_color(t.fg_dim),
+                )
                 .child(match c.phase {
                     Phase::Scanning { .. } => {
                         "Reading every folder in Home once. Large disks take a minute."
@@ -471,162 +518,227 @@ impl Workspace {
                         .collect::<Vec<_>>()
                 }),
             )
-            .track_scroll(c.scroll.clone())
+            .track_scroll(&c.scroll)
             .flex_1()
+            .py(SPACE_3)
             .into_any_element()
         };
 
         let queue_total = c.queue.total();
-        let mut queue = div()
-            .w(px(300.0))
-            .h_full()
-            .flex()
-            .flex_col()
-            .border_l_1()
-            .border_color(theme::border())
-            .bg(theme::sidebar())
-            .child(
+        let mut items = v_flex()
+            .id("queue-items")
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scroll()
+            .px(SPACE_4)
+            .gap(px(1.));
+        if c.queue.items.is_empty() {
+            items = items.child(
                 div()
-                    .p_3()
-                    .flex()
-                    .flex_col()
-                    .gap_1()
-                    .child(div().text_color(theme::muted()).text_xs().child("QUEUE"))
-                    .child(div().text_lg().child(format_size(queue_total)))
-                    .child(div().text_xs().text_color(theme::muted()).child(format!(
-                        "{} items. Enter or \u{2318}S stages the selected row.",
-                        c.queue.items.len()
-                    ))),
+                    .pt(SPACE_7)
+                    .px(SPACE_3)
+                    .text_size(FONT_SMALL)
+                    .text_color(t.fg_dim)
+                    .child("Nothing staged. Double-click a row, or select it and press Return."),
             );
-        let mut items = div().id("queue-items").flex_1().overflow_y_scroll().px_2();
+        }
         for (i, item) in c.queue.items.iter().enumerate() {
             let path = item.path.clone();
             items = items.child(
-                div()
+                h_flex()
                     .id(("queued", i))
-                    .flex()
-                    .gap_2()
-                    .py_1()
-                    .px_1()
-                    .rounded_sm()
-                    .text_xs()
-                    .hover(|s| s.bg(theme::hover()))
+                    .h(px(28.))
+                    .px(SPACE_3)
+                    .gap(SPACE_3)
+                    .rounded(RADIUS_MD)
+                    .text_size(FONT_SMALL)
+                    .hover(|s| s.bg(t.hover))
                     .child(div().flex_1().min_w_0().truncate().child(
                         af_clean::paths::display_path(&item.path, &af_clean::paths::home()),
                     ))
                     .child(
                         div()
-                            .text_color(theme::muted())
+                            .flex_none()
+                            .text_color(t.fg_muted)
                             .child(format_size(item.logical)),
                     )
                     .child(
-                        div()
-                            .id(("unstage", i))
-                            .cursor_pointer()
-                            .text_color(theme::muted())
-                            .hover(|s| s.text_color(theme::danger()))
-                            .child("\u{00d7}")
-                            .on_click(cx.listener(move |ws, _: &ClickEvent, _, cx| {
+                        icon_button(("unstage", i), IconName::X, false, cx)
+                            .tip("Unstage", None)
+                            .on_click(cx.listener(move |ws, _, _, cx| {
                                 ws.cleanup.queue.unstage(&path);
                                 cx.notify();
                             })),
                     ),
             );
         }
-        queue = queue.child(items).child(
-            div().p_3().child(
-                tool_button(
-                    "trash-queue",
-                    &format!("Move {} to Trash", format_size(queue_total)),
-                    queue_total > 0,
-                )
-                .w_full()
-                .h(px(32.0))
-                .when(queue_total > 0, |s| s.bg(theme::accent()))
-                .on_click(cx.listener(|ws, _: &ClickEvent, _, cx| Cleanup::trash_queue(ws, cx))),
-            ),
-        );
-
-        div()
-            .flex_1()
-            .min_w_0()
-            .flex()
+        let queue = v_flex()
+            .flex_none()
+            .w(px(300.))
+            .h_full()
+            .border_l_1()
+            .border_color(t.border)
+            .bg(t.chrome)
             .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .flex()
-                    .flex_col()
-                    .child(header)
-                    .child(list)
+                v_flex()
+                    .p(SPACE_7)
+                    .gap(SPACE_2)
+                    .child(section_label("Queue", cx))
                     .child(
                         div()
-                            .h(px(24.0))
-                            .px_3()
-                            .flex()
-                            .items_center()
-                            .text_xs()
-                            .text_color(theme::muted())
-                            .border_t_1()
-                            .border_color(theme::border())
-                            .children(c.message.clone()),
+                            .text_size(FONT_DISPLAY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(format_size(queue_total)),
+                    )
+                    .child(
+                        div()
+                            .text_size(FONT_SMALL)
+                            .text_color(t.fg_muted)
+                            .child(format!("{} items staged", c.queue.items.len())),
                     ),
+            )
+            .child(items)
+            .child(
+                div().p(SPACE_6).border_t_1().border_color(t.border).child(
+                    Button::new("trash-queue")
+                        .primary()
+                        .w_full()
+                        .icon(IconName::Trash)
+                        .label(format!("Move {} to Trash", format_size(queue_total)))
+                        .disabled(queue_total == 0)
+                        .on_click(cx.listener(|ws, _, _, cx| Cleanup::trash_queue(ws, cx))),
+                ),
+            );
+
+        h_flex()
+            .size_full()
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(header)
+                    .child(list)
+                    .when_some(c.message.clone(), |d, msg| {
+                        d.child(
+                            div()
+                                .flex_none()
+                                .px(SPACE_8)
+                                .py(SPACE_3)
+                                .border_t_1()
+                                .border_color(t.border)
+                                .bg(t.accent_soft)
+                                .text_size(FONT_SMALL)
+                                .text_color(t.fg)
+                                .child(msg),
+                        )
+                    }),
             )
             .child(queue)
     }
 
-    fn cleanup_row(&self, ix: usize, cx: &mut Context<Self>) -> gpui::Stateful<gpui::Div> {
+    fn cleanup_row(&mut self, ix: usize, cx: &mut Context<Self>) -> Stateful<Div> {
+        let t = tokens(cx);
         let c = &self.cleanup;
-        let base = div()
-            .id(("clean", ix))
-            .w_full()
-            .h(px(30.0))
-            .flex()
-            .items_center()
-            .px_4()
-            .gap_2();
         match &c.rows[ix] {
             Row::Header {
                 title,
                 hint,
                 safety,
                 total,
-            } => base
-                .mt_1()
-                .child(safety_badge(*safety))
-                .child(div().child(title.clone()))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .truncate()
-                        .text_xs()
-                        .text_color(theme::muted())
-                        .child(hint.clone()),
-                )
-                .child(div().text_color(theme::muted()).child(format_size(*total))),
+            } => {
+                let fraction = *total as f32 / c.max_total.max(1) as f32;
+                h_flex()
+                    .id(("clean", ix))
+                    .w_full()
+                    .h(ROW_HEIGHT)
+                    .px(SPACE_6)
+                    .child(
+                        h_flex()
+                            .size_full()
+                            .px(SPACE_4)
+                            .gap(SPACE_4)
+                            .rounded(RADIUS_MD)
+                            .bg(t.surface)
+                            .child(safety_badge(*safety, &t))
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(title.clone()),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_size(FONT_SMALL)
+                                    .text_color(t.fg_dim)
+                                    .child(hint.clone()),
+                            )
+                            .child(div().flex_none().w(px(110.)).child(meter(
+                                fraction,
+                                safety_color(*safety, &t),
+                                t.bar_track,
+                                px(4.),
+                            )))
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .w(px(64.))
+                                    .flex()
+                                    .justify_end()
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .child(format_size(*total)),
+                            ),
+                    )
+            }
             Row::Item {
                 label, size, path, ..
             } => {
                 let staged = c.is_staged(path);
                 let selected = ix == c.selected;
-                base.mx_1()
-                    .pl(px(28.0))
-                    .rounded_md()
-                    .when(selected, |s| s.bg(theme::selected()))
-                    .when(!selected, |s| s.hover(|s| s.bg(theme::hover())))
+                h_flex()
+                    .id(("clean", ix))
+                    .w_full()
+                    .h(ROW_HEIGHT)
+                    .px(SPACE_6)
                     .child(
-                        div()
-                            .w(px(14.0))
-                            .text_color(if staged {
-                                theme::safe()
-                            } else {
-                                theme::border()
-                            })
-                            .child(if staged { "\u{2713}" } else { "\u{25cb}" }),
+                        h_flex()
+                            .size_full()
+                            .pl(SPACE_6)
+                            .pr(SPACE_4)
+                            .gap(SPACE_4)
+                            .rounded(RADIUS_MD)
+                            .when_else(
+                                selected,
+                                |d| d.bg(t.selected),
+                                |d| d.hover(|s| s.bg(t.hover)),
+                            )
+                            .child(
+                                Icon::new(if staged {
+                                    IconName::CircleCheck
+                                } else {
+                                    IconName::Circle
+                                })
+                                .size(ICON_MD)
+                                .text_color(if staged {
+                                    t.success
+                                } else {
+                                    t.fg_dim
+                                }),
+                            )
+                            .child(div().flex_1().min_w_0().truncate().child(label.clone()))
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .w(px(64.))
+                                    .flex()
+                                    .justify_end()
+                                    .text_color(t.fg_muted)
+                                    .child(format_size(*size)),
+                            ),
                     )
-                    .child(div().flex_1().min_w_0().truncate().child(label.clone()))
-                    .child(div().text_color(theme::muted()).child(format_size(*size)))
                     .on_click(cx.listener(move |ws, e: &ClickEvent, _, cx| {
                         ws.cleanup.selected = ix;
                         if e.click_count() >= 2 || e.modifiers().platform {

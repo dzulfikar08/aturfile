@@ -52,7 +52,7 @@ pub fn apply(cx: &mut App) {
 mod tests {
     use super::*;
 
-    #[test]
+    #[std::prelude::v1::test]
     fn picks_the_first_installed() {
         let installed = vec!["Menlo".to_owned(), "Inter".to_owned()];
         assert_eq!(

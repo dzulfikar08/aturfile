@@ -71,6 +71,8 @@ icon_assets!(
         RefreshCw,
         CircleCheck,
         Circle,
+        Check,
+        Files,
     ]
 );
 

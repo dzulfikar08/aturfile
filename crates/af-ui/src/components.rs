@@ -128,7 +128,7 @@ impl IconButtonExt for Button {
 mod tests {
     use super::tip_text;
 
-    #[test]
+    #[std::prelude::v1::test]
     fn tip_text_adds_the_shortcut_when_there_is_one() {
         assert_eq!(tip_text("Rescan", None), "Rescan");
         assert_eq!(tip_text("Rescan", Some("")), "Rescan");

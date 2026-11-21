@@ -61,13 +61,21 @@ impl Selection {
         self.anchor = ix;
     }
 
-    /// Cmd-click: add or remove `ix`; it becomes the anchor either way.
+    /// Cmd-click: add or remove `ix`. An added row becomes the anchor; after
+    /// a removal the nearest row still selected does.
     pub fn toggle(&mut self, ix: usize) {
-        if !self.rows.remove(&ix) {
+        let at = if self.rows.remove(&ix) {
+            self.rows
+                .iter()
+                .copied()
+                .min_by_key(|r| r.abs_diff(ix))
+                .unwrap_or(ix)
+        } else {
             self.rows.insert(ix);
-        }
-        self.cursor = Some(ix);
-        self.anchor = ix;
+            ix
+        };
+        self.cursor = Some(at);
+        self.anchor = at;
     }
 
     /// Shift-click / Shift-arrow: the range from the anchor to `ix`.

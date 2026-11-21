@@ -13,6 +13,7 @@ use rayon::prelude::*;
 pub mod details;
 pub mod kind;
 pub mod location;
+pub mod ops;
 pub mod selection;
 
 pub use kind::FileKind;
@@ -55,10 +56,21 @@ pub fn list_dir(dir: &Path) -> io::Result<Vec<Entry>> {
     Ok(raw.par_iter().filter_map(entry_from).collect())
 }
 
+/// The entry for one path (after creating or renaming it).
+pub fn entry_for(path: &Path) -> Option<Entry> {
+    let name = path.file_name()?.to_string_lossy().into_owned();
+    let link_md = fs::symlink_metadata(path).ok()?;
+    Some(make_entry(path.to_path_buf(), name, link_md))
+}
+
 fn entry_from(de: &fs::DirEntry) -> Option<Entry> {
     let path = de.path();
     let name = de.file_name().to_string_lossy().into_owned();
     let link_md = de.metadata().ok()?;
+    Some(make_entry(path, name, link_md))
+}
+
+fn make_entry(path: PathBuf, name: String, link_md: fs::Metadata) -> Entry {
     let is_symlink = link_md.file_type().is_symlink();
     // Follow symlinks for the kind, so a link to a folder opens like a folder.
     let md = if is_symlink {
@@ -71,7 +83,7 @@ fn entry_from(de: &fs::DirEntry) -> Option<Entry> {
         .ok()
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
         .map(|d| d.as_secs() as i64);
-    Some(Entry {
+    Entry {
         hidden: name.starts_with('.') || has_hidden_flag(&md),
         is_dir: md.is_dir(),
         size: if md.is_dir() { 0 } else { md.len() },
@@ -79,7 +91,7 @@ fn entry_from(de: &fs::DirEntry) -> Option<Entry> {
         path,
         is_symlink,
         modified,
-    })
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -291,5 +303,7 @@ mod tests {
             assert!(link.is_symlink && link.is_dir);
         }
         assert!(v[0].is_dir);
+        assert_eq!(entry_for(&dir.path().join("a.txt")).unwrap(), *a);
+        assert!(entry_for(&dir.path().join("missing")).is_none());
     }
 }

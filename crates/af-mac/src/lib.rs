@@ -76,6 +76,12 @@ fn passwd_home() -> Option<PathBuf> {
 /// Move `path` to the Trash. On macOS this is the Finder's Trash (Put Back
 /// works); elsewhere the freedesktop Trash under `$XDG_DATA_HOME/Trash`.
 pub fn trash(path: &Path) -> io::Result<()> {
+    imp::trash(path).map(|_| ())
+}
+
+/// [`trash`], returning where the item went (so it can be moved back), when
+/// the system says.
+pub fn trash_located(path: &Path) -> io::Result<Option<PathBuf>> {
     imp::trash(path)
 }
 
@@ -305,11 +311,15 @@ mod imp {
         io::Error::other(e.localizedDescription().to_string())
     }
 
-    pub fn trash(path: &Path) -> io::Result<()> {
+    pub fn trash(path: &Path) -> io::Result<Option<PathBuf>> {
         let url = file_url(path);
+        let mut resulting: Option<Retained<NSURL>> = None;
         NSFileManager::defaultManager()
-            .trashItemAtURL_resultingItemURL_error(&url, None)
-            .map_err(|e| ns_error(&e))
+            .trashItemAtURL_resultingItemURL_error(&url, Some(&mut resulting))
+            .map_err(|e| ns_error(&e))?;
+        Ok(resulting
+            .and_then(|u| u.path())
+            .map(|p| PathBuf::from(p.to_string())))
     }
 
     pub fn bookmark(path: &Path) -> io::Result<Vec<u8>> {
@@ -364,7 +374,7 @@ mod imp {
 
     /// freedesktop.org Trash: the file plus a `.trashinfo` with its origin, so
     /// file managers can restore it.
-    pub fn trash(path: &Path) -> io::Result<()> {
+    pub fn trash(path: &Path) -> io::Result<Option<PathBuf>> {
         let base = std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| super::real_home().join(".local/share"))
@@ -399,7 +409,7 @@ mod imp {
             let _ = std::fs::remove_file(info.join(format!("{candidate}.trashinfo")));
             return Err(e);
         }
-        Ok(())
+        Ok(Some(dest))
     }
 
     fn deletion_date() -> String {

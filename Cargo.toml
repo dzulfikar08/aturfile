@@ -5,7 +5,7 @@ members = [
     "crates/af-mac",
     "crates/af-clean",
     "crates/af-ui",
-    # "crates/af-app",
+    "crates/af-app",
 ]
 # The GPUI app needs a display; `cargo test` at the root covers the engines.
 default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean"]

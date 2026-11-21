@@ -117,15 +117,31 @@ jobs:
           mkdir -p dist-sandboxed
           scripts/bundle-macos.sh target/release/aturfile dist-sandboxed packaging/entitlements.mas.plist
 
-      # Launch each bundle, let it render (and scan, in Clean Up), capture its
-      # window, and fail if the app died on the way.
+      # Launch each bundle in each view, let it render (and scan, in Clean
+      # Up), capture its window, and fail if the app died on the way. The
+      # fixture folder gives the views and the preview known content.
       - name: Smoke test
         if: ${{ !cancelled() }}
         run: |
           mkdir -p shots
           swiftc -O -o /tmp/window-id scripts/window-id.swift
+          fx=/tmp/af-fixture
+          rm -rf "$fx" && mkdir -p "$fx/Projects/aturfile/src" "$fx/Projects/kantor" "$fx/Photos" "$fx/Music" "$fx/Archive"
+          printf '# Release notes\n\nThe **new** file manager:\n\n- tabs and *three* views\n- a preview pane\n- [Clean Up](https://example.com)\n\n```rust\nfn main() {}\n```\n' > "$fx/README.md"
+          cp crates/af-fs/src/lib.rs "$fx/Projects/aturfile/src/lib.rs"
+          cp Cargo.toml "$fx/Projects/aturfile/Cargo.toml"
+          printf 'Groceries\n- coffee\n- rice\n' > "$fx/notes.txt"
+          head -c 3000000 /dev/urandom > "$fx/Archive/backup.zip"
+          head -c 120000 /dev/urandom > "$fx/Music/track.mp3"
+          for f in /System/Library/Desktop\ Pictures/*.heic; do
+            sips -s format jpeg -Z 1200 "$f" --out "$fx/Photos/$(basename "$f" .heic).jpg" >/dev/null 2>&1 || true
+          done
+          ls /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/*.icns | head -6 | while read -r icns; do
+            sips -s format png -Z 256 "$icns" --out "$fx/Photos/$(basename "$icns" .icns).png" >/dev/null 2>&1 || true
+          done
+          ls -la "$fx" "$fx/Photos" | head -40
           smoke() {
-            local name="$1"; shift
+            local name="$1" wait="$2"; shift 2
             "$@" > "shots/$name.log" 2>&1 &
             local pid=$! id=""
             for _ in $(seq 1 60); do
@@ -133,7 +149,7 @@ jobs:
               sleep 0.5
             done
             [ -n "$id" ] || { echo "::error::$name: no window appeared"; cat "shots/$name.log"; return 1; }
-            sleep 15
+            sleep "$wait"
             if ! kill -0 "$pid" 2>/dev/null; then
               echo "::error::$name exited early"; cat "shots/$name.log"; return 1
             fi
@@ -142,10 +158,20 @@ jobs:
             kill "$pid"
           }
           export AF_DEBUG=1
-          smoke files dist/aturfile.app/Contents/MacOS/aturfile
-          smoke oversized dist/aturfile.app/Contents/MacOS/aturfile --window 1440x900
-          smoke cleanup dist/aturfile.app/Contents/MacOS/aturfile --cleanup
-          smoke sandboxed dist-sandboxed/aturfile.app/Contents/MacOS/aturfile
+          app=dist/aturfile.app/Contents/MacOS/aturfile
+          smoke files 8 "$app"
+          smoke oversized 6 "$app" --window 1440x900
+          smoke list-preview 8 "$app" --preview --select README.md "$fx"
+          smoke columns 8 "$app" --view columns --select aturfile "$fx/Projects"
+          smoke columns-file 8 "$app" --view columns --select Cargo.toml "$fx/Projects/aturfile"
+          smoke icons 10 "$app" --view icons --preview "$fx/Photos"
+          smoke code-preview 8 "$app" --preview --select lib.rs "$fx/Projects/aturfile/src"
+          smoke light 8 "$app" --theme "aturfile Light" --preview --select notes.txt "$fx"
+          smoke airy-nord 8 "$app" --theme Nord --density airy --view icons "$fx"
+          smoke palette 6 "$app" --palette "$fx"
+          smoke cleanup 15 "$app" --cleanup
+          smoke cleanup-light 15 "$app" --cleanup --theme "aturfile Light"
+          smoke sandboxed 8 dist-sandboxed/aturfile.app/Contents/MacOS/aturfile
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
