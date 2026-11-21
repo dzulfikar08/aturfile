@@ -72,6 +72,14 @@ jobs:
             sips -s format jpeg -Z 1600 "$f" --out "$d/Photos/Iceland/IMG_$((4100 + i)).jpg" >/dev/null 2>&1 || true
           done
           head -c 9000000 /dev/urandom > "$d/Photos/Iceland.zip"
+          # Hide the runner's own folders, as macOS hides ~/Library.
+          for f in "$HOME"/*; do
+            case "$(basename "$f")" in
+              Desktop|Documents|Downloads|Movies|Music|Pictures|Public|Applications) ;;
+              *) chflags hidden "$f" ;;
+            esac
+          done
+          ls -lO "$HOME"
           ls -laR "$d" | head -60
 
       - name: Capture
@@ -100,7 +108,7 @@ jobs:
           shot 1-photos 10 "$app" "${W[@]}" --view icons --preview --select IMG_4103.jpg "$d/Photos/Iceland"
           shot 2-columns 8 "$app" "${W[@]}" --view columns --select README.md "$d/Projects/atlas"
           shot 3-search 10 "$app" "${W[@]}" --search "iceland" "$d"
-          shot 4-cleanup 30 "$app" "${W[@]}" --cleanup --theme "aturfile Dark"
+          AF_SCAN_ROOT="$HOME/Documents" AF_STAGE_SAFE=1 shot 4-cleanup 25 "$app" "${W[@]}" --cleanup --theme "aturfile Dark"
           shot 5-code 8 "$app" "${W[@]}" --theme "aturfile Dark" --preview --select lib.rs "$d/Projects/atlas/src"
           shot 6-notes 8 "$app" "${W[@]}" --preview --select "Trip to Iceland.md" "$d/Notes"
           shot 7-list 8 "$app" "${W[@]}" --preview --select Invoices "$d"

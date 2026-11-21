@@ -110,6 +110,10 @@ impl Cleanup {
                         };
                         c.selected = c.first_item().unwrap_or(0);
                         c.message = None;
+                        // AF_STAGE_SAFE: stage the safe items (CI screenshots).
+                        if std::env::var_os("AF_STAGE_SAFE").is_some() {
+                            c.stage_all_safe(cx);
+                        }
                     }
                     Err(e) => {
                         c.phase = Phase::Idle;

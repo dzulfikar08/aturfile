@@ -94,6 +94,18 @@ const PACKAGES: &[&str] = &[
 /// Folders full of generated files nobody searches by name.
 const SKIP_NAMES: &[&str] = &["node_modules"];
 
+#[cfg(target_os = "macos")]
+fn has_hidden_flag(path: &Path) -> bool {
+    use std::os::macos::fs::MetadataExt;
+    const UF_HIDDEN: u32 = 0x8000;
+    std::fs::symlink_metadata(path).is_ok_and(|m| m.st_flags() & UF_HIDDEN != 0)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn has_hidden_flag(_path: &Path) -> bool {
+    false
+}
+
 #[derive(Default)]
 pub struct Index {
     items: RwLock<Vec<Item>>,
@@ -142,6 +154,11 @@ impl Index {
                 let Ok(ft) = entry.file_type() else { continue };
                 let path = entry.path();
                 let is_dir = ft.is_dir();
+                // Folders macOS hides (the UF_HIDDEN flag, as Finder does) are
+                // skipped with their contents; files are not stat'd for speed.
+                if is_dir && !opts.include_hidden && has_hidden_flag(&path) {
+                    continue;
+                }
                 if is_dir
                     && !opts.skip.iter().any(|s| s == &path)
                     && !SKIP_NAMES.contains(&name.as_ref())
