@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/wordmark-dark.png">
+  <img alt="aturfile" src="docs/brand/wordmark-light.png" width="360">
+</picture>
+
 # aturfile
 
 A fast file manager for macOS with disk cleanup built in. Rust and GPUI.
