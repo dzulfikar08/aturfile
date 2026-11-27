@@ -12,7 +12,7 @@ use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::Workspace;
+use super::{Workspace, dnd};
 use crate::appearance;
 use crate::tab::Page;
 
@@ -98,22 +98,27 @@ impl Workspace {
             let menu_path = place.path.clone();
             let menu_ws = ws.clone();
             let pinned = place.pinned;
+            let row = dnd::drop_target(
+                self.sidebar_row(("place", i), active, cx),
+                place.path.clone(),
+                ws.clone(),
+                cx,
+            );
             favorites.push(
-                self.sidebar_row(("place", i), active, cx)
-                    .child(Icon::new(place.icon).size(ICON_MD).text_color(if active {
-                        t.accent
-                    } else {
-                        t.kind_folder
-                    }))
-                    .child(div().flex_1().min_w_0().truncate().child(place.label))
-                    .on_click(cx.listener(move |ws, _: &ClickEvent, window, cx| {
-                        ws.go(target.clone(), None, cx);
-                        ws.focus_list(window, cx);
-                    }))
-                    .context_menu(move |menu: PopupMenu, _, _| {
-                        place_menu(menu, &menu_ws, menu_path.clone(), pinned)
-                    })
-                    .into_any_element(),
+                row.child(Icon::new(place.icon).size(ICON_MD).text_color(if active {
+                    t.accent
+                } else {
+                    t.kind_folder
+                }))
+                .child(div().flex_1().min_w_0().truncate().child(place.label))
+                .on_click(cx.listener(move |ws, _: &ClickEvent, window, cx| {
+                    ws.go(target.clone(), None, cx);
+                    ws.focus_list(window, cx);
+                }))
+                .context_menu(move |menu: PopupMenu, _, _| {
+                    place_menu(menu, &menu_ws, menu_path.clone(), pinned)
+                })
+                .into_any_element(),
             );
         }
 
@@ -125,9 +130,14 @@ impl Workspace {
             let target = vol.path.clone();
             let menu_path = vol.path.clone();
             let menu_ws = ws.clone();
+            let row = dnd::drop_target(
+                self.sidebar_row(("volume", i), active, cx),
+                vol.path.clone(),
+                ws.clone(),
+                cx,
+            );
             locations.push(
-                self.sidebar_row(("volume", i), active, cx)
-                    .h(px(44.))
+                row.h(px(44.))
                     .child(
                         Icon::new(if vol.is_root {
                             IconName::HardDrive

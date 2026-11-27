@@ -2,6 +2,7 @@
 //! bar, command palette and the Clean Up page.
 
 mod columns;
+mod dnd;
 mod fileops;
 mod icons;
 mod list;
@@ -98,6 +99,9 @@ pub struct Workspace {
     pub(crate) notice: Option<SharedString>,
     /// A right-click landed on a row (the background menu stays shut).
     pub(crate) right_click_on_row: bool,
+    /// A plain mouse-down on a row already in a multi-selection: narrow the
+    /// selection to it on release unless the press became a drag.
+    pending_select: Option<usize>,
     /// List view: which of Modified, Size, Kind fit beside the names.
     pub(crate) list_cols: [bool; 3],
     /// AF_DEBUG: last logged window metrics.
@@ -174,6 +178,7 @@ impl Workspace {
             grants: af_mac::Grants::restore(),
             notice: None,
             right_click_on_row: false,
+            pending_select: None,
             list_cols: [true; 3],
             debug_last: None,
             _subscriptions: subscriptions,
@@ -480,15 +485,27 @@ impl Workspace {
     ) {
         self.focus_list(window, cx);
         self.editing_location = false;
+        self.pending_select = None;
         let tab = self.tab_mut();
         if modifiers.platform || modifiers.control {
             tab.selection.toggle(row);
         } else if modifiers.shift {
             tab.selection.extend_to(row);
+        } else if tab.selection.contains(row) && tab.selection.count() > 1 {
+            // Keep the selection so it can be dragged; see `release_row`.
+            self.pending_select = Some(row);
         } else {
             tab.selection.select_only(row);
         }
         cx.notify();
+    }
+
+    /// A click (press and release, no drag) on `row`.
+    pub(crate) fn release_row(&mut self, row: usize, cx: &mut Context<Self>) {
+        if self.pending_select.take() == Some(row) {
+            self.tab_mut().selection.select_only(row);
+            cx.notify();
+        }
     }
 
     /// A right-click on `row`: select it unless it already is.

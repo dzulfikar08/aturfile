@@ -9,7 +9,8 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::list::file_icon;
-use super::{Workspace, menus};
+use super::{Workspace, dnd, menus};
+use crate::tab::is_folder;
 
 /// Images up to this size get a thumbnail (GPUI decodes the whole file).
 const THUMBNAIL_MAX_BYTES: u64 = 12 * 1024 * 1024;
@@ -57,9 +58,8 @@ impl Workspace {
             .py(SPACE_4)
             .into_any_element()
         };
-        v_flex()
-            .id("icons-view")
-            .size_full()
+        let cwd = self.tab().cwd.clone();
+        dnd::drop_target(v_flex().id("icons-view").size_full(), cwd, ws.clone(), cx)
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|ws, _: &MouseDownEvent, _, cx| ws.right_click_background(cx)),
@@ -100,9 +100,19 @@ impl Workspace {
                     .into_any_element()
             };
             let ws = cx.entity().downgrade();
+            let payload = self.drag_payload(row, cx);
+            let renaming = self
+                .ops
+                .renaming
+                .as_ref()
+                .is_some_and(|r| r.path == entry.path);
+            let mut cell = v_flex();
+            if is_folder(&entry) {
+                cell = dnd::drop_target(cell, entry.path.clone(), ws.clone(), cx);
+            }
+            let cell = cell.id(("icon", row));
             cells.push(
-                v_flex()
-                    .id(("icon", row))
+                dnd::drag_source(cell, payload.filter(|_| !renaming))
                     .flex_none()
                     .w(px(ICON_CELL_WIDTH))
                     .h(px(ICON_CELL_HEIGHT))
@@ -154,6 +164,8 @@ impl Workspace {
                         cx.stop_propagation();
                         if e.click_count() >= 2 {
                             ws.open_row(row, cx);
+                        } else {
+                            ws.release_row(row, cx);
                         }
                     }))
                     .context_menu(move |menu, _, cx| menus::item_menu(menu, &ws, cx))
