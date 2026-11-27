@@ -115,6 +115,14 @@ impl Workspace {
                     .text_color(t.fg_muted)
                     .child(format!("Version {}  \u{00b7}  {edition}", env!("CARGO_PKG_VERSION"))),
             )
+            .when(super::update::enabled(), |d| {
+                d.child(
+                    div()
+                        .text_size(FONT_SMALL)
+                        .text_color(t.fg_dim)
+                        .child(self.updates.about_line(self.settings.auto_update)),
+                )
+            })
             .child(
                 div()
                     .pt(SPACE_3)
@@ -134,6 +142,15 @@ impl Workspace {
                             .label("Source code")
                             .on_click(|_, _, cx| cx.open_url("https://github.com/dzulfikar08/aturfile")),
                     )
+                    .when(super::update::enabled(), |d| {
+                        d.child(
+                            Button::new("about-update")
+                                .small()
+                                .outline()
+                                .label("Check for Updates")
+                                .on_click(cx.listener(|ws, _, _, cx| ws.check_for_updates(true, cx))),
+                        )
+                    })
                     .child(
                         Button::new("about-close")
                             .small()

@@ -264,6 +264,18 @@ impl Workspace {
             }
         }
         let progress = self.render_progress(cx);
+        let update = self.updates.status_text().map(|text| {
+            div()
+                .id("update-status")
+                .flex_none()
+                .px(SPACE_3)
+                .rounded(RADIUS_SM)
+                .cursor_pointer()
+                .text_color(t.accent)
+                .hover(|s| s.bg(t.hover))
+                .child(text)
+                .on_click(cx.listener(|ws, _: &ClickEvent, _, cx| ws.update_clicked(cx)))
+        });
         let notice = self.notice.clone();
         let free = self.volume_of(&tab.cwd).map(|v| {
             format!(
@@ -291,6 +303,7 @@ impl Workspace {
             .children(left)
             .child(div().flex_1().min_w_0().truncate().children(notice))
             .children(progress)
+            .children(update)
             .children(free.map(|f| div().flex_none().child(f)))
             .child(
                 div()

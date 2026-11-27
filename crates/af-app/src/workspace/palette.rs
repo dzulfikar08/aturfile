@@ -95,6 +95,9 @@ enum Cmd {
     About,
     Pro,
     RestorePurchases,
+    CheckUpdates,
+    RestartToUpdate,
+    ToggleAutoUpdate,
     Density(Density),
     Theme(usize),
 }
@@ -174,6 +177,14 @@ fn command_rows() -> Vec<Row> {
     if af_store::STORE_BUILD {
         rows.push(r("aturfile Pro\u{2026}", None, Cmd::Pro));
         rows.push(r("Restore Purchases", None, Cmd::RestorePurchases));
+    } else {
+        rows.push(r("Check for Updates\u{2026}", None, Cmd::CheckUpdates));
+        rows.push(r("Restart to Update", None, Cmd::RestartToUpdate));
+        rows.push(r(
+            "Automatic Update Checks: On or Off",
+            None,
+            Cmd::ToggleAutoUpdate,
+        ));
     }
     rows
 }
@@ -563,6 +574,9 @@ impl Workspace {
             Cmd::About => self.open_sheet(super::sheet::Sheet::About, cx),
             Cmd::Pro => self.open_sheet(super::sheet::Sheet::Pro, cx),
             Cmd::RestorePurchases => crate::pro::restore(cx),
+            Cmd::CheckUpdates => self.check_for_updates(true, cx),
+            Cmd::RestartToUpdate => self.restart_to_update(cx),
+            Cmd::ToggleAutoUpdate => self.toggle_auto_update(cx),
         }
     }
 

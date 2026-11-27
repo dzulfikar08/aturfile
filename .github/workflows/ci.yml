@@ -48,11 +48,11 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Lint
-        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean -p af-search -p af-store --all-targets -- -D warnings
+        run: cargo clippy --locked --keep-going -p af-fs -p af-mac -p af-clean -p af-search -p af-store -p af-update --all-targets -- -D warnings
 
       - name: Test
         if: ${{ !cancelled() }}
-        run: cargo test --locked -p af-fs -p af-mac -p af-clean -p af-search -p af-store
+        run: cargo test --locked -p af-fs -p af-mac -p af-clean -p af-search -p af-store -p af-update
 
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         # Saved after failed lints too, so the next push doesn't rebuild GPUI.

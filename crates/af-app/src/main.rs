@@ -12,6 +12,7 @@
 //!     --search QUERY         open the search dialog with QUERY
 //!     --sheet about|pro      open the About or Pro sheet
 //!     --window WxH           window size in points
+//!     --version              print `aturfile <version>` and exit
 //! ```
 
 extern crate gpui_kit as gpui;
@@ -54,6 +55,11 @@ fn parse_args() -> Args {
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
         match arg.as_str() {
+            "--version" | "-V" => {
+                // The updater runs a downloaded build with this to check it.
+                println!("aturfile {}", env!("CARGO_PKG_VERSION"));
+                std::process::exit(0);
+            }
             "--cleanup" => args.start.cleanup = true,
             "--preview" => args.start.preview = true,
             "--palette" => args.start.palette = true,
@@ -79,13 +85,20 @@ fn parse_args() -> Args {
 }
 
 fn menus() -> Vec<Menu> {
+    let mut app_menu = vec![MenuItem::action("About aturfile", ShowAbout)];
+    if !af_store::STORE_BUILD {
+        app_menu.push(MenuItem::action(
+            "Check for Updates\u{2026}",
+            CheckForUpdates,
+        ));
+    }
+    app_menu.extend([
+        MenuItem::action("Settings\u{2026}", OpenSettings),
+        MenuItem::separator(),
+        MenuItem::action("Quit aturfile", Quit),
+    ]);
     vec![
-        Menu::new("aturfile").items([
-            MenuItem::action("About aturfile", ShowAbout),
-            MenuItem::action("Settings\u{2026}", OpenSettings),
-            MenuItem::separator(),
-            MenuItem::action("Quit aturfile", Quit),
-        ]),
+        Menu::new("aturfile").items(app_menu),
         Menu::new("File").items([
             MenuItem::action("New Tab", NewTab),
             MenuItem::action("New Folder", NewFolder),
@@ -154,6 +167,12 @@ fn main() {
             pro::init(cx);
             actions::bind_keys(cx);
             cx.on_action(|_: &Quit, cx| cx.quit());
+            // A downloaded update goes in place when aturfile quits.
+            cx.on_app_quit(|_| {
+                workspace::apply_on_quit();
+                async {}
+            })
+            .detach();
             cx.set_menus(menus());
 
             // Never ask for more than the screen: macOS would shrink the window

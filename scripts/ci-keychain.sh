@@ -1,7 +1,7 @@
 #!/bin/bash
 # CI only: install the App Store Connect API key and import signing identities into a temporary keychain.
 #
-#   scripts/ci-keychain.sh setup NAME...   # NAME = APPLE_DIST | MAC_INSTALLER
+#   scripts/ci-keychain.sh setup NAME...   # NAME = APPLE_DIST | MAC_INSTALLER | DEVELOPER_ID
 #   scripts/ci-keychain.sh cleanup
 #
 # Reads ASC_KEY_ID + ASC_KEY_BASE64 and, per NAME, <NAME>_P12_BASE64 + <NAME>_P12_PASSWORD from the environment.
