@@ -35,6 +35,7 @@ actions!(
         FocusFilter,
         EditLocation,
         PaletteUp,
+        PaletteToggleFiles,
         PaletteDown,
         // Moving and selecting
         SelectNext,
@@ -107,6 +108,7 @@ pub fn bind_keys(cx: &mut App) {
         ws("cmd-l", EditLocation),
         KeyBinding::new("up", PaletteUp, Some(PALETTE_INPUT)),
         KeyBinding::new("down", PaletteDown, Some(PALETTE_INPUT)),
+        KeyBinding::new("tab", PaletteToggleFiles, Some(PALETTE_INPUT)),
         KeyBinding::new("up", SelectPrev, Some(FILTER_INPUT)),
         KeyBinding::new("down", SelectNext, Some(FILTER_INPUT)),
         // Moving and selecting

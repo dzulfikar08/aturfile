@@ -354,6 +354,7 @@ impl Workspace {
         let row_h = appearance::density(cx).row_height();
         div().w_full().h(row_h).px(SPACE_3).flex_none().child(
             h_flex()
+                .id("cell")
                 .size_full()
                 .px(SPACE_3)
                 .gap(SPACE_4)

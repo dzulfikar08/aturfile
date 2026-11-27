@@ -717,6 +717,7 @@ impl Workspace {
                     .px(SPACE_6)
                     .child(
                         h_flex()
+                            .id("cell")
                             .size_full()
                             .pl(SPACE_6)
                             .pr(SPACE_4)

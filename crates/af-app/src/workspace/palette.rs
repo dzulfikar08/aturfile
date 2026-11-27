@@ -1,6 +1,7 @@
 //! The palette. Cmd-K searches files by name across Home and mounted
 //! volumes (the empty query lists commands, and matching commands stay on
-//! top); Cmd-Shift-P lists commands only; Cmd-, picks a theme.
+//! top); Tab or the "Files" switch turns file results off and on (and is
+//! remembered); Cmd-Shift-P lists commands only; Cmd-, picks a theme.
 
 use af_ui::catalog::{self, ThemeEntry, ThemeId};
 use af_ui::components::kbd;
@@ -204,13 +205,40 @@ fn rank(rows: &[Row], query: &str) -> Vec<usize> {
         .collect()
 }
 
+fn placeholder(mode: Mode) -> &'static str {
+    match mode {
+        Mode::Search => "Search files by name, or type a command",
+        Mode::Commands => "Type a command",
+        Mode::Themes => "Choose a theme",
+    }
+}
+
 impl Workspace {
-    pub(super) fn open_palette(&mut self, mode: Mode, window: &mut Window, cx: &mut Context<Self>) {
-        let placeholder = match mode {
-            Mode::Search => "Search files by name, or type a command",
-            Mode::Commands => "Type a command",
-            Mode::Themes => "Choose a theme",
+    /// Switch Cmd-K between files-and-commands and commands only, keeping
+    /// the query; the choice is remembered for the next Cmd-K.
+    pub(super) fn palette_toggle_files(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(p) = self.palette.as_mut() else {
+            return;
         };
+        let mode = match p.mode {
+            Mode::Search => Mode::Commands,
+            Mode::Commands => Mode::Search,
+            Mode::Themes => return,
+        };
+        p.mode = mode;
+        let (input, query) = (p.input.clone(), p.query.clone());
+        input.update(cx, |i, cx| i.set_placeholder(placeholder(mode), window, cx));
+        self.settings.palette_files = mode == Mode::Search;
+        self.save_settings();
+        if mode == Mode::Search {
+            self.ensure_index();
+        }
+        self.palette_query(query, cx);
+        cx.notify();
+    }
+
+    pub(super) fn open_palette(&mut self, mode: Mode, window: &mut Window, cx: &mut Context<Self>) {
+        let placeholder = placeholder(mode);
         if mode == Mode::Search {
             self.ensure_index();
         }
@@ -636,7 +664,10 @@ impl Workspace {
                         )
                         .child(div().flex_1().child(
                             gpui_kit::component::input::Input::new(&p.input).appearance(false),
-                        )),
+                        ))
+                        .when(p.mode != Mode::Themes, |d| {
+                            d.child(self.files_toggle(p.mode == Mode::Search, cx))
+                        }),
                 )
                 .child(div().p(SPACE_3).when_else(
                     count == 0,
@@ -658,6 +689,8 @@ impl Workspace {
         Some(
             div()
                 .id("palette-scrim")
+                // Scroll and hover stay with the dialog, not the list behind.
+                .occlude()
                 .absolute()
                 .inset_0()
                 .flex()
@@ -671,6 +704,40 @@ impl Workspace {
                 .child(panel)
                 .into_any_element(),
         )
+    }
+
+    /// The header's "Files" switch: on, Cmd-K searches file names too.
+    fn files_toggle(&self, on: bool, cx: &mut Context<Self>) -> impl IntoElement {
+        let t = tokens(cx);
+        h_flex()
+            .id("palette-files")
+            .flex_none()
+            .gap(SPACE_2)
+            .px(SPACE_3)
+            .py(px(2.))
+            .rounded(RADIUS_MD)
+            .border_1()
+            .cursor_pointer()
+            .text_size(FONT_CAPTION)
+            .when_else(
+                on,
+                |d| d.bg(t.accent_soft).border_color(t.accent).text_color(t.fg),
+                |d| {
+                    d.border_color(t.border_strong)
+                        .text_color(t.fg_muted)
+                        .hover(|s| s.bg(t.hover))
+                },
+            )
+            .child(Icon::new(IconName::File).size(ICON_SM))
+            .child("Files")
+            .child(kbd("Tab", cx))
+            .on_click(cx.listener(|ws, _: &ClickEvent, window, cx| {
+                ws.palette_toggle_files(window, cx);
+                if let Some(p) = ws.palette.as_ref() {
+                    let input = p.input.clone();
+                    input.update(cx, |i, cx| i.focus(window, cx));
+                }
+            }))
     }
 
     fn palette_rows(

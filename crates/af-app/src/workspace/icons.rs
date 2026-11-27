@@ -122,6 +122,7 @@ impl Workspace {
                     .when(entry.hidden, |d| d.opacity(0.6))
                     .child(
                         div()
+                            .id("tile")
                             .size(px(68.))
                             .flex_none()
                             .flex()

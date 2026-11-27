@@ -115,10 +115,17 @@ pub enum SortKey {
     Kind,
 }
 
-/// Folders first, then by `key`; names break ties so the order is stable.
+/// By `key`, names breaking ties so the order is stable. Name and Kind keep
+/// folders first; Modified and Size order everything by that value alone.
 pub fn sort(entries: &mut [Entry], key: SortKey, ascending: bool) {
+    let folders_first = matches!(key, SortKey::Name | SortKey::Kind);
     entries.sort_by(|a, b| {
-        b.is_dir.cmp(&a.is_dir).then_with(|| {
+        let group = if folders_first {
+            b.is_dir.cmp(&a.is_dir)
+        } else {
+            Ordering::Equal
+        };
+        group.then_with(|| {
             let by_key = match key {
                 SortKey::Name => Ordering::Equal,
                 SortKey::Size => a.size.cmp(&b.size),
@@ -249,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn folders_first_then_size_desc() {
+    fn size_sort_mixes_folders_in() {
         let mut v = vec![
             entry("small", false, 1),
             entry("dir", true, 0),
@@ -257,7 +264,19 @@ mod tests {
         ];
         sort(&mut v, SortKey::Size, false);
         let names: Vec<_> = v.iter().map(|e| e.name.as_str()).collect();
-        assert_eq!(names, ["dir", "big", "small"]);
+        assert_eq!(names, ["big", "small", "dir"]);
+    }
+
+    #[test]
+    fn name_sort_keeps_folders_first() {
+        let mut v = vec![
+            entry("a.txt", false, 1),
+            entry("zdir", true, 0),
+            entry("b.txt", false, 2),
+        ];
+        sort(&mut v, SortKey::Name, true);
+        let names: Vec<_> = v.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, ["zdir", "a.txt", "b.txt"]);
     }
 
     #[test]

@@ -61,6 +61,8 @@ impl Workspace {
         Some(
             div()
                 .id("sheet-scrim")
+                // Scroll and hover stay with the dialog, not the list behind.
+                .occlude()
                 .absolute()
                 .inset_0()
                 .flex()

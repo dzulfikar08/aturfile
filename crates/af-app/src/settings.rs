@@ -23,6 +23,8 @@ pub struct Settings {
     pub columns: [f32; 3],
     /// Folders pinned to the sidebar's Favorites.
     pub pins: Vec<PathBuf>,
+    /// Cmd-K searches file names as well as commands (Tab switches).
+    pub palette_files: bool,
 }
 
 impl Default for Settings {
@@ -39,6 +41,7 @@ impl Default for Settings {
             preview_width: PREVIEW_WIDTH,
             columns: [COL_MODIFIED, COL_SIZE, COL_KIND],
             pins: Vec::new(),
+            palette_files: true,
         }
     }
 }

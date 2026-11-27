@@ -788,7 +788,12 @@ impl Workspace {
         if self.palette.is_some() {
             self.close_palette(window, cx);
         } else {
-            self.open_palette(palette::Mode::Search, window, cx);
+            let mode = if self.settings.palette_files {
+                palette::Mode::Search
+            } else {
+                palette::Mode::Commands
+            };
+            self.open_palette(mode, window, cx);
         }
     }
     fn on_show_about(&mut self, _: &ShowAbout, _: &mut Window, cx: &mut Context<Self>) {
@@ -1041,6 +1046,14 @@ impl Workspace {
     fn on_palette_down(&mut self, _: &PaletteDown, _: &mut Window, cx: &mut Context<Self>) {
         self.palette_move(1, cx);
     }
+    fn on_palette_toggle_files(
+        &mut self,
+        _: &PaletteToggleFiles,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.palette_toggle_files(window, cx);
+    }
 
     /// Type-to-filter: printable keys build the query, Backspace edits it (or
     /// goes up a folder when it's empty). Only while the list has focus.
@@ -1276,6 +1289,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_empty_queue))
             .on_action(cx.listener(Self::on_palette_up))
             .on_action(cx.listener(Self::on_palette_down))
+            .on_action(cx.listener(Self::on_palette_toggle_files))
             .on_action(cx.listener(Self::on_trash))
             .on_action(cx.listener(Self::on_new_folder))
             .on_action(cx.listener(Self::on_rename))
