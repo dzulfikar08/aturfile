@@ -15,6 +15,7 @@ actions!(
     aturfile,
     [
         Quit,
+        CheckForUpdates,
         // Shell
         NewTab,
         CloseTab,

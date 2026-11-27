@@ -13,6 +13,7 @@ mod sheet;
 mod shell;
 mod sidebar;
 mod toolbar;
+mod update;
 mod watch;
 
 use std::path::{Path, PathBuf};
@@ -31,6 +32,7 @@ use crate::appearance;
 use crate::cleanup::Cleanup;
 use crate::settings::Settings;
 use crate::tab::{Page, Tab, ViewMode, is_folder};
+pub use update::apply_on_quit;
 
 pub use fileops::FileOps;
 
@@ -102,6 +104,7 @@ pub struct Workspace {
     /// A plain mouse-down on a row already in a multi-selection: narrow the
     /// selection to it on release unless the press became a drag.
     pending_select: Option<usize>,
+    pub(crate) updates: update::Updates,
     /// List view: which of Modified, Size, Kind fit beside the names.
     pub(crate) list_cols: [bool; 3],
     /// AF_DEBUG: last logged window metrics.
@@ -179,6 +182,7 @@ impl Workspace {
             notice: None,
             right_click_on_row: false,
             pending_select: None,
+            updates: update::Updates::default(),
             list_cols: [true; 3],
             debug_last: None,
             _subscriptions: subscriptions,
@@ -205,6 +209,7 @@ impl Workspace {
             this.open_palette(palette::Mode::Search, window, cx);
             this.set_palette_text(query, window, cx);
         }
+        this.init_updates(cx);
         this
     }
 
@@ -796,6 +801,14 @@ impl Workspace {
             self.open_palette(mode, window, cx);
         }
     }
+    fn on_check_for_updates(
+        &mut self,
+        _: &CheckForUpdates,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.check_for_updates(true, cx);
+    }
     fn on_show_about(&mut self, _: &ShowAbout, _: &mut Window, cx: &mut Context<Self>) {
         self.open_sheet(sheet::Sheet::About, cx);
     }
@@ -1251,6 +1264,7 @@ impl Render for Workspace {
             .on_action(cx.listener(Self::on_toggle_palette))
             .on_action(cx.listener(Self::on_show_commands))
             .on_action(cx.listener(Self::on_show_about))
+            .on_action(cx.listener(Self::on_check_for_updates))
             .on_action(cx.listener(Self::on_open_settings))
             .on_action(cx.listener(Self::on_cancel))
             .on_action(cx.listener(Self::on_toggle_sidebar))

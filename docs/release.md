@@ -1,4 +1,7 @@
-# Releasing aturfile on the Mac App Store
+# Releasing aturfile
+
+Two builds ship: the Mac App Store build (sections 1 to 5) and the
+direct-download Developer ID build that updates itself (section 6).
 
 ## 1. What already exists (set up 2026-11-21)
 
@@ -69,3 +72,41 @@ ASC_KEY_ID=XXXXXXXXXX ASC_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
   privacy policy URL.
 - Test the purchase with a sandbox Apple Account (TestFlight or a
   development-signed build with a StoreKit configuration file).
+
+## 6. Direct download (Developer ID) and in-app updates
+
+Cut a release:
+
+1. Bump `version` under `[workspace.package]` in `Cargo.toml` (and
+   `Cargo.lock` follows on the next build), merge to `main`.
+2. Tag and push: `git tag -a v1.1.0 -m "aturfile 1.1.0" && git push origin v1.1.0`.
+
+`.github/workflows/direct.yml` then builds the universal app without the
+`store` feature (`scripts/build-direct.sh`), signs it with Developer ID
+(hardened runtime, no entitlements), notarises and staples it, checks
+`aturfile --version`, packages `aturfile-X.Y.Z-macos.zip` (for people) and
+`aturfile-X.Y.Z-universal-macos.tar.gz` (for the updater), writes
+`update-stable.json` and its signature (`scripts/update-manifest.sh`) and
+creates the GitHub Release, uploading the manifest last. Installed copies
+read `releases/latest/download/update-stable.json` and offer the update.
+
+A dry run builds, signs and notarises without publishing:
+`gh workflow run direct.yml --ref main` (artifacts only).
+
+| Secret (`release` environment) | What |
+| --- | --- |
+| `DEVELOPER_ID_P12_BASE64` / `DEVELOPER_ID_P12_PASSWORD` | Developer ID Application certificate and key (team F6Q6UFUK69, valid until 2031) |
+| `UPDATE_SIGNING_KEY` | base64 of the 32-byte Ed25519 seed that signs the update manifest |
+| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_BASE64` | App Store Connect API key, also used by notarytool |
+
+The manifest's public key is embedded in `crates/af-update/src/manifest.rs`
+and checked by `scripts/update-manifest.sh`, so a wrong secret fails the
+release instead of shipping a manifest no copy accepts. Rotating the key
+means shipping a build with the new public key while the old key still
+signs, then switching the secret.
+
+The updater (`crates/af-update`, glue in `crates/af-app/src/workspace/update.rs`)
+stages the download in `.aturfile-update` beside `aturfile.app`, so it needs
+write access to that folder (true for `/Applications` and `~/Applications`
+for admin users). The App Store build (`af_store::STORE_BUILD`) never runs
+it and makes no network requests.

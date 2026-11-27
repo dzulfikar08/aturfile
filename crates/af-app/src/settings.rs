@@ -25,6 +25,9 @@ pub struct Settings {
     pub pins: Vec<PathBuf>,
     /// Cmd-K searches file names as well as commands (Tab switches).
     pub palette_files: bool,
+    /// Check for updates once a day (Developer ID builds; the App Store
+    /// updates its own).
+    pub auto_update: bool,
 }
 
 impl Default for Settings {
@@ -42,6 +45,7 @@ impl Default for Settings {
             columns: [COL_MODIFIED, COL_SIZE, COL_KIND],
             pins: Vec::new(),
             palette_files: true,
+            auto_update: true,
         }
     }
 }

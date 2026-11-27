@@ -6,13 +6,14 @@ members = [
     "crates/af-clean",
     "crates/af-search",
     "crates/af-store",
+    "crates/af-update",
     "crates/af-ui",
     "crates/af-app",
 ]
 # The GPUI app needs a display; `cargo test` at the root covers the engines.
 # vendor/ holds patched third-party crates; they are not linted or tested here.
 exclude = ["vendor"]
-default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean", "crates/af-search", "crates/af-store"]
+default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean", "crates/af-search", "crates/af-store", "crates/af-update"]
 
 [workspace.package]
 version = "1.0.0"

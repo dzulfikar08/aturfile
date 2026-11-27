@@ -80,7 +80,21 @@ bundle plus one signed ad hoc with the App Store sandbox entitlements) and
 aturfile [folder] [--cleanup] [--view list|columns|icons] [--preview]
          [--select NAME] [--theme NAME] [--density compact|airy]
          [--palette] [--search QUERY] [--sheet about|pro] [--window WxH]
+         [--version]
 ```
+
+## Updates
+
+Releases are signed with Developer ID, notarised and published on GitHub
+Releases (`.github/workflows/direct.yml`, on a `v*` tag). That build checks
+for updates once a day and from Check for Updates… (the app menu, the
+palette, About). A newer version downloads in the background, is verified
+(Ed25519-signed manifest, SHA-256, code signature, notarisation, its
+`--version`) and goes in place when you choose Restart to Update or quit.
+"Automatic Update Checks: On or Off" in the palette turns the daily check
+off (`auto_update` in settings.toml). A check sends only the User-Agent
+(`aturfile/<version> (macos; <arch>)`). The App Store build never checks:
+the App Store updates it. Code: `crates/af-update`.
 
 ## Keys
 

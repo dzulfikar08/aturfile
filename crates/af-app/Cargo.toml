@@ -23,6 +23,7 @@ af-clean = { path = "../af-clean" }
 af-mac = { path = "../af-mac" }
 af-ui = { path = "../af-ui" }
 af-search = { path = "../af-search" }
+af-update = { path = "../af-update" }
 # Syntax highlighting in the code preview: tree-sitter grammars for a few
 # common languages only (JSON comes with the base feature).
 gpui-kit = { workspace = true, features = [
