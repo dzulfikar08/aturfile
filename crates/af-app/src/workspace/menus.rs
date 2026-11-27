@@ -2,6 +2,7 @@
 //! menu opens, from the selection at that moment.
 
 use gpui_kit::assets::IconName;
+use gpui_kit::component::Icon;
 use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
@@ -39,7 +40,12 @@ fn item(
 }
 
 /// Right-click on one or more selected items.
-pub(crate) fn item_menu(menu: PopupMenu, ws: &WeakEntity<Workspace>, cx: &App) -> PopupMenu {
+pub(crate) fn item_menu(
+    menu: PopupMenu,
+    ws: &WeakEntity<Workspace>,
+    window: &mut Window,
+    cx: &mut Context<PopupMenu>,
+) -> PopupMenu {
     let Some(entity) = ws.upgrade() else {
         return menu;
     };
@@ -58,6 +64,7 @@ pub(crate) fn item_menu(menu: PopupMenu, ws: &WeakEntity<Workspace>, cx: &App) -
         .as_ref()
         .is_some_and(|p| w.settings.is_pinned(p));
     let can_paste = w.ops.can_paste();
+    let paths = tab.selected_paths();
 
     let mut menu = menu.item(item(
         "Open",
@@ -74,6 +81,17 @@ pub(crate) fn item_menu(menu: PopupMenu, ws: &WeakEntity<Workspace>, cx: &App) -
             ws,
             move |ws, _, cx| ws.new_tab_at(path.clone(), cx),
         ));
+    }
+    if cfg!(target_os = "macos") {
+        let apps = af_mac::apps_for(&paths);
+        let ws = ws.clone();
+        menu = menu.submenu_with_icon(
+            Some(Icon::new(IconName::AppWindow)),
+            "Open With",
+            window,
+            cx,
+            move |sub, _, _| open_with_menu(sub, &ws, &paths, &apps),
+        );
     }
     menu = menu
         .item(item(
@@ -189,6 +207,38 @@ pub(crate) fn item_menu(menu: PopupMenu, ws: &WeakEntity<Workspace>, cx: &App) -
         ws,
         |ws, window, cx| ws.trash_selected(window, cx),
     ))
+}
+
+/// The Open With submenu: the apps that take every selected item, the
+/// default first, then "Other…" to pick any app.
+fn open_with_menu(
+    mut menu: PopupMenu,
+    ws: &WeakEntity<Workspace>,
+    paths: &[std::path::PathBuf],
+    apps: &[af_mac::OpenApp],
+) -> PopupMenu {
+    for (i, app) in apps.iter().enumerate() {
+        let label = if app.is_default {
+            format!("{} (default)", app.name)
+        } else {
+            app.name.clone()
+        };
+        let (paths, app_path) = (paths.to_vec(), app.path.clone());
+        menu = menu.item(item(&label, None, None, ws, move |ws, _, cx| {
+            ws.open_with(&paths, &app_path, cx)
+        }));
+        if app.is_default && i + 1 < apps.len() {
+            menu = menu.separator();
+        }
+    }
+    if apps.is_empty() {
+        menu = menu.item(PopupMenuItem::new("No Apps Found").disabled(true));
+    }
+    let paths = paths.to_vec();
+    menu.separator()
+        .item(item("Other\u{2026}", None, None, ws, move |ws, _, cx| {
+            ws.open_with_other(paths.clone(), cx)
+        }))
 }
 
 /// Right-click on empty space: about the folder itself.

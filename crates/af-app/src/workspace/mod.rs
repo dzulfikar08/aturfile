@@ -446,6 +446,42 @@ impl Workspace {
         }
     }
 
+    /// Open `paths` in the app at `app`.
+    pub(crate) fn open_with(&mut self, paths: &[PathBuf], app: &Path, cx: &mut Context<Self>) {
+        if let Err(e) = af_mac::open_with(paths, app) {
+            self.notice = Some(format!("Couldn't open: {e}").into());
+            cx.notify();
+        }
+    }
+
+    /// Open With → Other…: pick an app in the open panel, then open `paths`
+    /// in it.
+    pub(crate) fn open_with_other(&mut self, paths: Vec<PathBuf>, cx: &mut Context<Self>) {
+        let answer = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: Some("Open".into()),
+        });
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(picked))) = answer.await else {
+                return;
+            };
+            let Some(app) = picked.into_iter().next() else {
+                return;
+            };
+            let _ = this.update(cx, |ws, cx| {
+                if app.extension().is_some_and(|e| e == "app") {
+                    ws.open_with(&paths, &app, cx);
+                } else {
+                    ws.notice = Some("Choose an app to open with.".into());
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
     // ---- selection --------------------------------------------------------
 
     pub(crate) fn scroll_to_cursor(&mut self) {

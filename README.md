@@ -17,7 +17,7 @@ crates/af-fs     folder listing (parallel stat, natural sort, type-to-filter),
                  file kinds, multi-selection, location parsing, preview reads,
                  file operations with undo (conflict names, copy, move)
 crates/af-mac    macOS glue: real home, Finder Trash, sandbox folder grants,
-                 mounted volumes and free space
+                 mounted volumes and free space, Open With
 crates/af-clean  cleanup engine: parallel scanner, System Data report,
                  staged queue with protected-path guards, duplicates
 crates/af-search file-name index (bounded, background) and fuzzy ranking
@@ -51,6 +51,8 @@ Component's widgets and the Lucide icons). The window:
   the view's background; drag files in from Finder or out to any app. Like
   Finder, the same disk moves and another disk copies; Option copies,
   Command moves. Undo works as for paste.
+- **Open With** (right-click): the apps that can open the selection, the
+  default first, or Other… to pick any app.
 - **Preview pane** (resizable, Cmd-Alt-P): images, text and source code,
   rendered Markdown, folder totals, and the item's details.
 - **Status bar**: item count, selection count and size, free space, view.

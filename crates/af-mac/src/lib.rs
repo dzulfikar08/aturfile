@@ -7,9 +7,14 @@
 //! - [`Grants`]: folders the user opened through the open panel, kept as
 //!   security-scoped bookmarks so the sandboxed app can reach them next launch.
 //! - [`volumes`] and [`space`]: mounted disks and their capacity.
+//! - [`apps_for`] and [`open_with`]: Open With.
 
 use std::io;
 use std::path::{Path, PathBuf};
+
+mod open_with;
+
+pub use open_with::{OpenApp, apps_for, open_with};
 
 /// True inside the App Sandbox (Mac App Store builds).
 pub fn is_sandboxed() -> bool {
