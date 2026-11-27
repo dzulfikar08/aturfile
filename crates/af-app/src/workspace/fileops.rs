@@ -273,31 +273,48 @@ impl Workspace {
         };
         let dir = self.tab().cwd.clone();
         let moving = clip.cut || force_move;
+        let paths = clip.paths.clone();
+        if self.put_into(&dir, &paths, moving, cx) && moving {
+            self.ops.clip = None;
+        }
+    }
+
+    /// Copy or move `paths` into `dir` (paste, drop). Items already in `dir`
+    /// are skipped when moving. Returns false when refused.
+    pub(crate) fn put_into(
+        &mut self,
+        dir: &Path,
+        paths: &[PathBuf],
+        moving: bool,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let mut pairs = Vec::new();
-        for src in &clip.paths {
+        for src in paths {
             let Some(name) = src.file_name().map(|n| n.to_string_lossy().into_owned()) else {
                 continue;
             };
-            if moving && src.parent() == Some(dir.as_path()) {
+            if moving && src.parent() == Some(dir) {
                 continue; // already here
             }
             if dir.starts_with(src) {
-                return self.set_notice(format!("Can't put {} inside itself", quoted(src)), cx);
+                self.set_notice(format!("Can't put {} inside itself", quoted(src)), cx);
+                return false;
             }
             let is_dir = src.is_dir();
-            pairs.push((src.clone(), ops::unique_name(&dir, &name, is_dir)));
+            pairs.push((src.clone(), ops::unique_name(dir, &name, is_dir)));
         }
         if moving {
             for (src, _) in &pairs {
                 if let Err(e) = af_clean::cleanup::check_protected(src) {
-                    return self.set_notice(format!("Not moved: {e}"), cx);
+                    self.set_notice(format!("Not moved: {e}"), cx);
+                    return false;
                 }
             }
-            self.ops.clip = None;
         }
         if !pairs.is_empty() {
             self.transfer(pairs, moving, cx);
         }
+        true
     }
 
     /// Copy or move `pairs` on a background thread, then record the op and

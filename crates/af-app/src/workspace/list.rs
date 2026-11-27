@@ -11,9 +11,10 @@ use gpui_kit::component::{Icon, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
-use super::{Drag, Workspace, menus};
+use super::{Drag, Workspace, dnd, menus};
 use crate::appearance;
 use crate::format;
+use crate::tab::is_folder;
 
 /// The icon and colour for an entry's kind.
 pub(crate) fn file_icon(entry: &Entry, t: &Tokens) -> (IconName, Hsla) {
@@ -188,6 +189,7 @@ impl Workspace {
         let t = tokens(cx);
         let ws = cx.entity().downgrade();
         let tab = self.tab();
+        let cwd = tab.cwd.clone();
         let empty = tab.visible.is_empty();
         let body = if empty {
             let msg = if !tab.loaded {
@@ -226,24 +228,26 @@ impl Workspace {
             .size_full()
             .child(self.render_header(cx))
             .child(
-                v_flex()
-                    .id("list-body")
-                    .flex_1()
-                    .min_h_0()
-                    .on_mouse_down(
-                        MouseButton::Right,
-                        cx.listener(|ws, _: &MouseDownEvent, _, cx| ws.right_click_background(cx)),
-                    )
-                    .on_click(cx.listener(|ws, e: &ClickEvent, window, cx| {
-                        // A click below the last row clears the selection.
-                        if e.standard_click() {
-                            ws.tab_mut().selection.clear();
-                            ws.focus_list(window, cx);
-                            cx.notify();
-                        }
-                    }))
-                    .child(body)
-                    .context_menu(move |menu, _, cx| menus::background_menu(menu, &ws, cx)),
+                dnd::drop_target(
+                    v_flex().id("list-body").flex_1().min_h_0(),
+                    cwd,
+                    ws.clone(),
+                    cx,
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(|ws, _: &MouseDownEvent, _, cx| ws.right_click_background(cx)),
+                )
+                .on_click(cx.listener(|ws, e: &ClickEvent, window, cx| {
+                    // A click below the last row clears the selection.
+                    if e.standard_click() {
+                        ws.tab_mut().selection.clear();
+                        ws.focus_list(window, cx);
+                        cx.notify();
+                    }
+                }))
+                .child(body)
+                .context_menu(move |menu, _, cx| menus::background_menu(menu, &ws, cx)),
             )
     }
 
@@ -291,37 +295,43 @@ impl Workspace {
                 .text_color(t.fg_muted)
                 .child(text)
         };
+        let folder = is_folder(&entry).then(|| entry.path.clone());
+        let payload = (!renaming).then(|| self.drag_payload(row, cx)).flatten();
+        let cell = h_flex()
+            .size_full()
+            .px(SPACE_3)
+            .rounded(RADIUS_MD)
+            .when_else(
+                selected,
+                |d| d.bg(t.selected),
+                |d| d.hover(|s| s.bg(t.hover)),
+            )
+            .when(entry.hidden, |d| d.opacity(0.6))
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(SPACE_4)
+                    .child(Icon::new(icon).size(ICON_LG).text_color(color).flex_none())
+                    .child(name),
+            )
+            .when(shown[0], |d| d.child(muted(widths[0], date)))
+            .when(shown[1], |d| {
+                d.child(muted(widths[1], size_text(&entry)).flex().justify_end())
+            })
+            .when(shown[2], |d| d.child(muted(widths[2], kind)));
+        let cell = match folder {
+            Some(dir) => dnd::drop_target(cell, dir, ws.clone(), cx),
+            None => cell,
+        };
+        let row_el = h_flex()
+            .id(("row", row))
+            .w_full()
+            .h(row_h)
+            .px(SPACE_3)
+            .child(cell);
         Some(
-            h_flex()
-                .id(("row", row))
-                .w_full()
-                .h(row_h)
-                .px(SPACE_3)
-                .child(
-                    h_flex()
-                        .size_full()
-                        .px(SPACE_3)
-                        .rounded(RADIUS_MD)
-                        .when_else(
-                            selected,
-                            |d| d.bg(t.selected),
-                            |d| d.hover(|s| s.bg(t.hover)),
-                        )
-                        .when(entry.hidden, |d| d.opacity(0.6))
-                        .child(
-                            h_flex()
-                                .flex_1()
-                                .min_w_0()
-                                .gap(SPACE_4)
-                                .child(Icon::new(icon).size(ICON_LG).text_color(color).flex_none())
-                                .child(name),
-                        )
-                        .when(shown[0], |d| d.child(muted(widths[0], date)))
-                        .when(shown[1], |d| {
-                            d.child(muted(widths[1], size_text(&entry)).flex().justify_end())
-                        })
-                        .when(shown[2], |d| d.child(muted(widths[2], kind))),
-                )
+            dnd::drag_source(row_el, payload)
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(move |ws, e: &MouseDownEvent, window, cx| {
@@ -338,6 +348,8 @@ impl Workspace {
                     cx.stop_propagation();
                     if e.click_count() >= 2 {
                         ws.open_row(row, cx);
+                    } else {
+                        ws.release_row(row, cx);
                     }
                 }))
                 .context_menu(move |menu, _, cx| menus::item_menu(menu, &ws, cx))

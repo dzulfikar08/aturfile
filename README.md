@@ -45,6 +45,10 @@ Component's widgets and the Lucide icons). The window:
   switcher, the filter field and the preview toggle.
 - **Views**: List (sortable, resizable columns), Columns (Miller columns),
   Icons (with image thumbnails). All are virtualised.
+- **Drag and drop**: drag items onto a folder, a sidebar place, a column or
+  the view's background; drag files in from Finder or out to any app. Like
+  Finder, the same disk moves and another disk copies; Option copies,
+  Command moves. Undo works as for paste.
 - **Preview pane** (resizable, Cmd-Alt-P): images, text and source code,
   rendered Markdown, folder totals, and the item's details.
 - **Status bar**: item count, selection count and size, free space, view.

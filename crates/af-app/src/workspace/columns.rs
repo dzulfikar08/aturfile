@@ -14,7 +14,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::*;
 
 use super::list::file_icon;
-use super::{Workspace, menus};
+use super::{Workspace, dnd, menus};
 use crate::appearance;
 use crate::tab::{Listing, is_folder};
 
@@ -206,9 +206,14 @@ impl Workspace {
                             let tab = ws.tab();
                             let entry = tab.entry_at(row)?.clone();
                             let selected = tab.selection.contains(row);
+                            let payload = ws.drag_payload(row, cx);
+                            let mut cell = ws.column_row(&entry, selected, true, cx);
+                            if is_folder(&entry) {
+                                let weak = cx.entity().downgrade();
+                                cell = dnd::drop_target(cell, entry.path.clone(), weak, cx);
+                            }
                             Some(
-                                ws.column_row(&entry, selected, true, cx)
-                                    .id(("cur", row))
+                                dnd::drag_source(cell.id(("cur", row)), payload)
                                     .on_mouse_down(
                                         MouseButton::Left,
                                         cx.listener(move |ws, e: &MouseDownEvent, window, cx| {
@@ -227,6 +232,8 @@ impl Workspace {
                                         cx.stop_propagation();
                                         if e.click_count() >= 2 {
                                             ws.open_row(row, cx);
+                                        } else {
+                                            ws.release_row(row, cx);
                                         }
                                     }))
                                     .context_menu({
@@ -244,8 +251,9 @@ impl Workspace {
             .py(SPACE_2)
             .into_any_element()
         };
-        Self::column_frame("column-current-frame", cx)
-            .bg(t.bg)
+        let cwd = self.tab().cwd.clone();
+        let frame = Self::column_frame("column-current-frame", cx).bg(t.bg);
+        dnd::drop_target(frame, cwd, ws.clone(), cx)
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(|ws, _: &MouseDownEvent, _, cx| ws.right_click_background(cx)),
@@ -293,9 +301,13 @@ impl Workspace {
             let name = entry.name.clone();
             let child_path = entry.path.clone();
             let folder = is_folder(entry);
+            let mut cell = self.column_row(entry, selected, false, cx);
+            if folder {
+                cell = dnd::drop_target(cell, entry.path.clone(), cx.entity().downgrade(), cx);
+            }
+            let payload = dnd::payload(std::slice::from_ref(entry), cx);
             rows.push(
-                self.column_row(entry, selected, false, cx)
-                    .id(("side", i))
+                dnd::drag_source(cell.id(("side", i)), payload)
                     .on_click(cx.listener(move |ws, e: &ClickEvent, window, cx| {
                         if e.click_count() >= 2 && !folder {
                             cx.open_with_system(&child_path);
@@ -328,11 +340,11 @@ impl Workspace {
                     }),
             );
         }
-        Self::column_frame(id, cx)
-            .bg(match side {
-                Side::Ancestor { .. } => t.chrome,
-                Side::Child => t.bg,
-            })
+        let frame = Self::column_frame(id, cx).bg(match side {
+            Side::Ancestor { .. } => t.chrome,
+            Side::Child => t.bg,
+        });
+        dnd::drop_target(frame, dir.to_path_buf(), cx.entity().downgrade(), cx)
             .child(body.children(rows))
     }
 
