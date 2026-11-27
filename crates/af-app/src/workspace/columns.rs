@@ -238,7 +238,9 @@ impl Workspace {
                                     }))
                                     .context_menu({
                                         let ws = cx.entity().downgrade();
-                                        move |menu, _, cx| menus::item_menu(menu, &ws, cx)
+                                        move |menu, window, cx| {
+                                            menus::item_menu(menu, &ws, window, cx)
+                                        }
                                     })
                                     .into_any_element(),
                             )

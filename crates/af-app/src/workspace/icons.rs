@@ -169,7 +169,7 @@ impl Workspace {
                             ws.release_row(row, cx);
                         }
                     }))
-                    .context_menu(move |menu, _, cx| menus::item_menu(menu, &ws, cx))
+                    .context_menu(move |menu, window, cx| menus::item_menu(menu, &ws, window, cx))
                     .into_any_element(),
             );
         }
