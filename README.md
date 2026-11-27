@@ -38,12 +38,14 @@ Component's widgets and the Lucide icons). The window:
   are partial). Typing ranks names fuzzily (exact, then prefix, then
   contiguous, with word boundaries counting more); matching commands stay on
   top, and the empty field lists every command. Names only, never contents.
+  Tab (or the Files switch) shows commands only; the choice is remembered.
 - **Sidebar** (resizable, Cmd-Alt-S): Favorites (standard folders and your
   pins), Locations (mounted volumes with a capacity bar), Tools (Clean Up).
 - **Toolbar**: back and forward, a breadcrumb path bar (click a folder to go;
   click empty space or press Cmd-L to type a path, `~` works), the view
   switcher, the filter field and the preview toggle.
-- **Views**: List (sortable, resizable columns), Columns (Miller columns),
+- **Views**: List (sortable, resizable columns; folders stay on top when
+  sorted by name or kind, while Modified and Size sort everything together), Columns (Miller columns),
   Icons (with image thumbnails). All are virtualised.
 - **Drag and drop**: drag items onto a folder, a sidebar place, a column or
   the view's background; drag files in from Finder or out to any app. Like

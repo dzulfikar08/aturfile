@@ -1,5 +1,6 @@
 //! The list view: sortable, resizable columns (Name, Modified, Size, Kind),
-//! folders first, kind-coloured icons. Virtualised with `uniform_list`.
+//! folders first when sorted by name or kind, kind-coloured icons.
+//! Virtualised with `uniform_list`.
 
 use af_fs::{Entry, FileKind, SortKey};
 use af_ui::metrics::*;
@@ -297,7 +298,9 @@ impl Workspace {
         };
         let folder = is_folder(&entry).then(|| entry.path.clone());
         let payload = (!renaming).then(|| self.drag_payload(row, cx)).flatten();
+        // An id, so the hover tint repaints as the pointer moves.
         let cell = h_flex()
+            .id("cell")
             .size_full()
             .px(SPACE_3)
             .rounded(RADIUS_MD)
