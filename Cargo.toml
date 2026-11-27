@@ -16,7 +16,7 @@ exclude = ["vendor"]
 default-members = ["crates/af-fs", "crates/af-mac", "crates/af-clean", "crates/af-search", "crates/af-store", "crates/af-update"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 rust-version = "1.92"
 license = "GPL-3.0-or-later"
